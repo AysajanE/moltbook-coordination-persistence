@@ -1,0 +1,237 @@
+\section{Identification, Estimation, and Empirical Procedures}
+\label{sec:methods}
+\StageThreeSectionNote
+
+This study is an observational measurement paper with disciplined theory rather
+than a causal intervention study. The identified objects are the common-risk-set
+margins \((q_h,\pi_h,\phi_h)\), the conditional timing summaries among observed
+replies, and the thread-geometry outcomes defined in \Cref{sec:model}. Exposure
+and staleness are not separately identified, and the policy indices in
+\Cref{sec:model:or-diagnostic} are plug-in decision calculations on observed
+margins rather than estimates of intervention effects.
+
+\subsection{Archive discipline and current evidence boundary}
+\label{sec:methods:design}
+
+The canonical parent-linked archive is the public SimulaMet Moltbook snapshot
+\citep{simulamet2026observatoryarchive}. The analysis begins with deterministic
+deduplication, UTC normalization, and parent-link validation. Each non-root
+comment becomes one candidate-parent unit, and each root post becomes one thread
+for the geometry readouts. The present manuscript therefore reports only
+SimulaMet-backed parent-linked evidence.
+
+The study design also includes a separate larger-archive replication on a public
+Moltbook archive (the approved MoltNet replication surface) under a harmonized
+minimal schema. That replication is not yet implemented in the current evidence
+base, so no pooled cross-archive estimator or cross-archive average is reported
+here. Until minimal-schema equivalence is audited, archive disagreement is
+treated as a replication object rather than pooled away.
+
+\subsection{Primary risk-set estimators}
+\label{sec:methods:def-est}
+\label{sec:methods:two-part}
+
+Let \(\mathcal{M}\) denote the realized cohort of non-root parent comments. For
+parent \(m\in\mathcal{M}\) and horizon \(h\), define the realized within-horizon
+completion indicator
+\[
+Y_h(m):=\mathbf{1}\{\delta_m=1,\ T_m\le h\}
+\]
+and the horizon risk-set indicator
+\[
+R_h(m):=\mathbf{1}\{C_m\ge h \text{ or } T_m\le h\}.
+\]
+The primary horizons are \(h\in\{5\text{ min},1\text{ h}\}\), with
+\(30\) seconds used only in gap and censoring diagnostics.
+
+The sample analogues of the control panel in \Cref{sec:model:estimands} are
+\begin{align}
+\widehat q_h
+&=
+\frac{\sum_{m\in\mathcal{M}} Y_h(m)}
+     {\sum_{m\in\mathcal{M}} R_h(m)},
+\\
+\widehat \pi_h
+&=
+\frac{\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\}R_h(m)}
+     {\sum_{m\in\mathcal{M}} R_h(m)},
+\\
+\widehat \phi_h
+&=
+\frac{\sum_{m\in\mathcal{M}} Y_h(m)}
+     {\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\}R_h(m)}.
+\end{align}
+By construction, the sample identity
+\[
+\widehat q_h=\widehat \pi_h\,\widehat \phi_h
+\]
+holds exactly whenever the three quantities are computed on the same risk set.
+Earlier draft tables denoted \(\widehat q_h\) by \(\widehat p_h\); the present
+section uses \(\widehat q_h\) to reserve \(\widehat \pi_h\) and
+\(\widehat \phi_h\) for its two interpretable margins.
+
+The secondary descriptive incidence measure is
+\[
+\widehat p_{\mathrm{obs}}
+=
+\frac{1}{|\mathcal{M}|}\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\},
+\]
+the in-window ever-replied share. Because it is sensitive to heterogeneous
+follow-up, \(\widehat p_{\mathrm{obs}}\) is treated as descriptive orientation
+only and not as the paper's main decision object.
+
+Among replied parents, conditional timing is summarized nonparametrically by the
+empirical distribution of \(T_m\mid (\delta_m=1)\), especially
+\((t_{50},t_{90},t_{95})\), plus short-window masses such as
+\(\Pr(T_m\le 30\text{ s}\mid \delta_m=1)\) and
+\(\Pr(T_m\le 5\text{ min}\mid \delta_m=1)\). Their unconditional counterparts
+\(\Pr(\delta_m=1,\ T_m\le t)\) are reported on the same parent cohort.
+
+\subsection{Gap handling, horizon standardization, and archive-conflict discipline}
+\label{sec:methods:gap-discipline}
+
+The canonical comment stream contains a 41.7-hour interruption, so gap handling
+is part of the primary design rather than a late robustness appendix. The paper
+therefore treats unobserved intervals as missing coverage rather than as true
+silence and uses three built-in checks.
+
+First, the core control-panel quantities are recomputed on contiguous windows,
+including a short pre-gap window and the substantially longer post-gap window.
+Second, parent comments whose potential follow-up windows overlap the gap are
+excluded in prespecified overlap checks. Third, the headline completion
+quantities are reported at explicit horizons using the risk-set estimators above,
+so right-censoring near the observation boundary cannot masquerade as slow
+conditional timing.
+
+No replies are imputed across the gap. Likewise, if a later archive conflicts
+with the canonical snapshot because of schema or coverage differences, that
+conflict is handled through separate re-estimation rather than by pooled
+cross-archive fusion. This is why gap handling, horizon standardization, and
+archive-conflict discipline are treated as core identification design choices.
+
+\subsection{Conversation geometry and downstream coordination readouts}
+\label{sec:methods:geometry}
+
+For each thread \(j\), depth is computed from \Cref{eq:depth}. The primary
+geometry readouts are the empirical depth-tail probabilities
+\(\Pr(D_j\ge k)\), maximum depth \(D_j\), and the branching-by-depth profile
+\(\bar c_k\) from \Cref{eq:branching-by-depth}. We additionally summarize
+reciprocity \(R_j\) and re-entry \(RE_j\) using
+\Cref{eq:reciprocity-rate,eq:reentry-rate}. These outcomes are not treated as
+independent mechanisms; instead, they provide the downstream coordination bridge
+for testing whether lower \(q_h\) coincides with shallower continuation and
+weaker repeated participation.
+
+Where a compact depth-tail summary is useful, the paper reports an effective
+log-tail slope \(\hat s_{\mathrm{depth}}\) fitted to
+\(\log \Pr(D_j\ge k)\) for \(k\ge 2\). That slope is descriptive. It is not
+claimed to be an identified reproduction parameter.
+
+\subsection{Auxiliary stratified and parametric diagnostics}
+\label{sec:methods:auxiliary}
+
+Submolt heterogeneity is evaluated on the same risk-set estimands
+\((\widehat q_h,\widehat \pi_h,\widehat \phi_h)\) using prespecified
+deterministic topic strata. Topic heterogeneity is secondary; it remains useful
+only insofar as it sharpens which persistence margin is more constrained.
+Account-status contrasts are retained as descriptive heterogeneity only and do
+not carry mechanism or causal interpretation.
+
+For auxiliary descriptive incidence contrasts across coarse strata, we fit a
+complementary log-log incidence regression:
+\begin{equation}
+\label{eq:methods-incidence-cloglog}
+\log\!\left[-\log\!\left(1-\Pr(\delta_m=1\mid x_m)\right)\right]
+=
+x_m^{\top}\eta.
+\end{equation}
+Here \(x_m\) contains prespecified group indicators such as submolt class and
+account-status group. This regression is calibration-oriented: it summarizes
+direction and relative incidence differences, but it is not the paper's primary
+estimand.
+
+Parametric timing fits are also auxiliary only. For diagnostic comparison with
+the nonparametric timing summaries, we fit an exponential-kernel hazard model
+and a Weibull alternative. The exponential-kernel log-likelihood is
+\begin{equation}
+\label{eq:exponential-ll}
+\ell(\alpha,\beta)
+=
+\sum_m
+\left[
+\delta_m(\log \alpha-\beta s_m)
+-
+\frac{\alpha}{\beta}\left(1-e^{-\beta s_m}\right)
+\right],
+\end{equation}
+where \(s_m:=\min(T_m,C_m)\), and the Weibull survival benchmark is
+\begin{equation}
+\label{eq:weibull-survival}
+S(s)=\exp\!\left[-\left(\frac{s}{\lambda}\right)^{\gamma}\right].
+\end{equation}
+These fits are used only as misspecification diagnostics and as secondary
+timescale summaries; they do not determine the main conclusions.
+
+\begin{remark}[Kernel half-life diagnostic]
+\label{rem:estimand}
+The quantity \(\ln 2/\beta\) from the exponential timing diagnostic is an
+exponential-equivalent reply-hazard timescale. It is not a median thread
+lifetime, and it is not a substitute for the primary control-panel margins.
+\end{remark}
+
+The repository analysis pipeline also reports a boundary-exclusion sensitivity
+for the half-life diagnostic that removes parents created near the observation
+end. That sensitivity is supplementary only and does not alter the primary
+risk-set estimands.
+
+\subsection{Diagnostic periodicity layer}
+\label{sec:methods:periodicity}
+
+Heartbeat-style synchronization is assessed only diagnostically and only on the
+longest contiguous segment of the comment stream. The diagnostic stack includes:
+event-time modulo-4-hour concentration, the Rayleigh statistic, Monte Carlo
+\(p\)-values for exact phase uniformity, power spectral density (PSD) checks at
+the four-hour target frequency, first-order autoregressive (AR(1)) null
+calibration for binned-count spectra, and bin-width sensitivity.
+
+This layer is intentionally non-load-bearing. At large \(N\), exact uniformity
+can be rejected even when concentration is far too small to imply practically
+meaningful global synchronization. Conversely, weak aggregate concentration does
+not rule out individual routines under dephasing or jitter. Periodicity is
+therefore treated as mechanism context only.
+
+\subsection{Separate-archive replication requirement}
+\label{sec:methods:replication}
+
+The study design extends beyond the canonical first-week archive. The same
+supported core metrics are to be re-estimated on a larger public Moltbook
+archive under a harmonized minimal schema containing thread identifier, comment
+identifier, parent identifier, author identifier, UTC timestamp, and community
+label. Replication is performed separately by archive. No pooled cross-archive
+estimator is used unless schema equivalence and coverage comparability have been
+audited first.
+
+If the replication archive preserves reliable parent-comment linkage, the same
+geometry outcomes \((D_j,\bar c_k,R_j,RE_j)\) can be transported as well. If
+parent linkage is incomplete or unreliable, the replication narrows to the
+supported two-part persistence quantities \((q_h,\pi_h,\phi_h)\) and the
+conditional timing summaries. In the current manuscript evidence base, however,
+only the canonical SimulaMet archive supports the reported parent-linked
+estimates.
+
+\subsection{Comparator boundary and uncertainty}
+\label{sec:methods:comparison}
+\label{sec:methods:uncertainty}
+
+No human-platform comparator enters the paper's primary estimands,
+identification logic, or policy index. Any residual comparator analysis kept
+elsewhere in the manuscript should be read as descriptive context only and not
+as part of the flagship architecture.
+
+Uncertainty for the nonparametric control-panel and geometry summaries is
+reported with thread-cluster bootstrap intervals using fixed resampling rules.
+Auxiliary incidence regressions use cluster-aware covariance that accounts for
+dependence within threads and repeated authors where those identifiers are
+available. One-parent-per-thread sensitivity is used as a further dependence
+check. These procedures quantify uncertainty around observational readouts; they
+do not convert the study into a causal design.

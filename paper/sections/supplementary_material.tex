@@ -1,0 +1,407 @@
+\noindent This supplementary material records the exact control-panel proofs,
+the estimator definitions that bridge theory to observables, and the gap-aware
+diagnostic tables retained in the approved manuscript architecture. It
+deliberately omits comparator-centered appendices and theorem-forward material
+from earlier drafts because those objects are not load-bearing in the final
+design.
+
+\section*{S1. Exact control-panel propositions}
+\SupplementTheoryOnlyNote
+
+The main text relies on only two exact propositions. They are restated and
+proved here.
+
+\begin{proposition}[Common-risk-set factorization]
+Fix a horizon \(h>0\). Define
+\[
+\begin{aligned}
+R_h(m)
+&:=\mathbf{1}\!\left\{\substack{C_m\ge h\\ \text{or } T_m\le h}\right\},\\
+\pi_h
+&:=\mathbb{P}(\delta_m=1\mid R_h(m)=1),\\
+\phi_h
+&:=\mathbb{P}\!\left(T_m\le h \,\middle|\, \substack{\delta_m=1\\ R_h(m)=1}\right),\\
+q_h
+&:=\mathbb{P}(T_m\le h \mid R_h(m)=1).
+\end{aligned}
+\]
+If \(\mathbb{P}(R_h(m)=1)>0\) and
+\(\mathbb{P}(\delta_m=1\mid R_h(m)=1)>0\), then
+\[
+q_h=\pi_h\phi_h.
+\]
+\end{proposition}
+
+\begin{proof}
+Conditional on \(R_h(m)=1\), the event \(\{T_m\le h\}\) implies
+\(\{\delta_m=1\}\): if the first direct reply arrives by \(h\), then a direct
+reply is observed before censoring. Therefore,
+\begin{align*}
+\mathbb{P}(T_m\le h\mid R_h(m)=1)
+&=
+\mathbb{P}(T_m\le h,\ \delta_m=1 \\
+&\hspace{2.5em}\mid R_h(m)=1).
+\end{align*}
+Applying the chain rule on the right-hand side gives
+\begin{gather*}
+\mathbb{P}(T_m\le h,\ \delta_m=1\mid R_h(m)=1)\\
+=\mathbb{P}(\delta_m=1\mid R_h(m)=1)\times \\
+\mathbb{P}\!\left(T_m\le h \,\middle|\, \substack{\delta_m=1\\ R_h(m)=1}\right).
+\end{gather*}
+which is exactly \(q_h=\pi_h\phi_h\).
+\end{proof}
+
+\begin{proposition}[One-margin gains and cost-normalized priority]
+Let \(q_h=\pi_h\phi_h\). If only the incidence margin changes by
+\(\Delta \pi_h\) while \(\phi_h\) is held fixed, then
+\[
+\Delta q_h^{(\pi)}=\phi_h\,\Delta \pi_h.
+\]
+If only the conditional-timing margin changes by \(\Delta \phi_h\) while
+\(\pi_h\) is held fixed, then
+\[
+\Delta q_h^{(\phi)}=\pi_h\,\Delta \phi_h.
+\]
+For positive intervention costs \(c_\pi\) and \(c_\phi\), the corresponding
+cost-normalized local gains are
+\[
+I_\pi:=\frac{\phi_h\,\Delta \pi_h}{c_\pi},
+\qquad
+I_\phi:=\frac{\pi_h\,\Delta \phi_h}{c_\phi},
+\]
+so local priority favors incidence lift if and only if \(I_\pi>I_\phi\).
+\end{proposition}
+
+\begin{proof}
+If only incidence changes, then
+\[
+q_h+\Delta q_h^{(\pi)}
+=
+(\pi_h+\Delta \pi_h)\phi_h
+=
+\pi_h\phi_h+\phi_h\Delta \pi_h,
+\]
+hence \(\Delta q_h^{(\pi)}=\phi_h\Delta \pi_h\). If only conditional timing
+changes, then
+\[
+q_h+\Delta q_h^{(\phi)}
+=
+\pi_h(\phi_h+\Delta \phi_h)
+=
+\pi_h\phi_h+\pi_h\Delta \phi_h,
+\]
+hence \(\Delta q_h^{(\phi)}=\pi_h\Delta \phi_h\). Dividing by positive costs
+\(c_\pi\) and \(c_\phi\) yields the indices \(I_\pi\) and \(I_\phi\), so the
+preferred local margin is incidence if and only if \(I_\pi>I_\phi\).
+\end{proof}
+
+\section*{S2. Observable bridge and primary estimators}
+\SupplementMixedEvidenceNote
+
+Let \(\mathcal{M}\) denote the realized cohort of non-root parent comments.
+For \(m\in\mathcal{M}\) and horizon \(h\), define
+\[
+\begin{aligned}
+Y_h(m)&:=\mathbf{1}\{\delta_m=1,\ T_m\le h\},\\
+R_h(m)&:=\mathbf{1}\!\left\{\substack{C_m\ge h\\ \text{or } T_m\le h}\right\}.
+\end{aligned}
+\]
+The sample control-panel estimators are
+\begin{align*}
+\widehat q_h
+&=
+\frac{\sum_{m\in\mathcal{M}} Y_h(m)}
+     {\sum_{m\in\mathcal{M}} R_h(m)},
+\\
+\widehat \pi_h
+&=
+\frac{\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\}R_h(m)}
+     {\sum_{m\in\mathcal{M}} R_h(m)},
+\\
+\widehat \phi_h
+&=
+\frac{\sum_{m\in\mathcal{M}} Y_h(m)}
+     {\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\}R_h(m)}.
+\end{align*}
+By construction,
+\[
+\widehat q_h=\widehat \pi_h\,\widehat \phi_h.
+\]
+Earlier drafts denoted \(\widehat q_h\) by \(\widehat p_h\). In the approved
+architecture, \(\widehat q_h\) is the preferred notation and
+\(\widehat p_{\mathrm{obs}}\) is reserved for the descriptive ever-reply share
+\[
+\widehat p_{\mathrm{obs}}
+=
+\frac{1}{|\mathcal{M}|}\sum_{m\in\mathcal{M}} \mathbf{1}\{\delta_m=1\}.
+\]
+
+All numerical readouts in this appendix come from the canonical
+SimulaMet-backed evidence. A larger-archive Moltbook replication remains part
+of the study design, but it is not yet a reported empirical result in the
+current manuscript.
+
+\subsection*{S2.1 Follow-up-standardized incidence by group}
+
+Table \ref{tab:supp-horizon-incidence-groups} summarizes the primary
+follow-up-standardized readouts at \(5\) minutes and \(1\) hour. Claimed versus
+unclaimed is retained as descriptive heterogeneity only.
+
+\begin{table}[h]
+\centering
+\caption{Follow-up-standardized incidence by group. The primary control-panel
+throughput quantities are \(q_{5\mathrm{m}}\) and \(q_{1\mathrm{h}}\); earlier
+drafts denoted the same quantities by \(p_h\). The in-window ever-reply share
+\(p_{\mathrm{obs}}\) is descriptive only. Claimed/unclaimed excludes parents
+with missing author identifier (\(n=906\)).}
+\label{tab:supp-horizon-incidence-groups}
+\small
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+\textbf{Family} & \textbf{Group} & \textbf{Parents} & \textbf{\(q_{5\mathrm{m}}\) \%} & \textbf{\(q_{1\mathrm{h}}\) \%} & \textbf{\(p_{\mathrm{obs}}\) \%} \\
+\midrule
+overall & Overall & 223,316 & 9.42 & 9.82 & 9.60 \\
+claimed\_status & Claimed & 20,667 & 18.95 & 19.56 & 19.23 \\
+claimed\_status & Unclaimed & 201,743 & 8.48 & 8.86 & 8.65 \\
+submolt\_category & Social/Casual & 189,765 & 10.80 & 11.21 & 10.95 \\
+submolt\_category & Other & 16,396 & 1.98 & 2.29 & 2.26 \\
+submolt\_category & Builder/Technical & 8,396 & 1.42 & 1.74 & 1.72 \\
+submolt\_category & Philosophy/Meta & 5,831 & 1.32 & 1.70 & 1.80 \\
+submolt\_category & Spam/Low-Signal & 2,495 & 0.88 & 0.93 & 0.88 \\
+submolt\_category & Creative & 433 & 1.62 & 1.71 & 1.62 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{S3. Coverage-gap discipline}
+\SupplementMixedEvidenceNote
+
+The canonical comment stream contains one 41.7-hour interruption from
+2026-01-31 10:37:53Z to 2026-02-02 04:20:50Z. The approved design therefore
+treats gap handling as part of the identification strategy rather than as a
+late robustness add-on.
+
+\subsection*{S3.1 Gap-disambiguation evidence}
+
+Table \ref{tab:supp-gap-disambiguation} shows that the interruption is
+comment-stream-specific in the archive: comments disappear over the interval,
+while posts, snapshots, and word-frequency records continue to arrive.
+
+\begin{table}[h]
+\centering
+\caption{Comment-gap disambiguation evidence across raw archive tables. The
+comment interval gap is 2026-01-31 10:37:53Z to 2026-02-02 04:20:50Z.}
+\label{tab:supp-gap-disambiguation}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Table} & \textbf{Records} & \textbf{Records in comment-gap interval} & \textbf{Max inter-event gap (h)} \\
+\midrule
+comments & 226,173 & 0 & 41.72 \\
+posts & 119,677 & 38,166 & 11.20 \\
+snapshots & 114 & 39 & 2.28 \\
+word\_frequency & 15,346 & 5,039 & 3.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{S3.2 Window robustness}
+
+Table \ref{tab:supp-gap-window-robustness} reports the two-part decomposition
+across the full window, contiguous pre-gap and post-gap windows, and the two
+prespecified gap-overlap exclusions.
+
+\begin{table}[h]
+\centering
+\caption{Two-part decomposition robustness across contiguous windows and
+gap-overlap exclusions.}
+\label{tab:supp-gap-window-robustness}
+\scriptsize
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+\textbf{Scenario} & \textbf{Parents} & \textbf{Replies} & \textbf{Incidence \%} & \textbf{\(t_{50}\) (s)} & \textbf{\(t_{90}\) (s)} & \textbf{\(\Pr(\mathrm{reply}\le 30\mathrm{s})\) \%} & \textbf{\(\Pr(\mathrm{reply}\le 5\mathrm{m})\) \%} \\
+\midrule
+Full window & 223,316 & 21,430 & 9.60 & 4.55 & 50.05 & 8.47 & 9.41 \\
+Pre-gap contiguous & 2,856 & 30 & 1.05 & 513.48 & 1699.77 & 0.04 & 0.35 \\
+Post-gap contiguous & 220,460 & 21,400 & 9.71 & 4.55 & 48.66 & 8.58 & 9.53 \\
+Exclude gap overlap (6h) & 220,460 & 21,400 & 9.71 & 4.55 & 48.66 & 8.58 & 9.53 \\
+Exclude gap overlap (24h) & 220,460 & 21,400 & 9.71 & 4.55 & 48.66 & 8.58 & 9.53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{S3.3 Horizon-standardized risk sets}
+
+Table \ref{tab:supp-gap-horizon-standardized} reports the explicit risk-set
+denominators used for the horizon-standardized readouts. Short-horizon values
+remain stable, while the one-hour rate rises modestly under standardization,
+consistent with right-censoring near the observation boundary rather than with a
+slow conditional-timing regime.
+
+\begin{table}[h]
+\centering
+\caption{Horizon-standardized reply probabilities using explicit risk sets.}
+\label{tab:supp-gap-horizon-standardized}
+\small
+\begin{tabular}{@{}llrr@{}}
+\toprule
+\textbf{Scenario} & \textbf{Horizon} & \textbf{Risk-set \(n\)} & \textbf{\(\Pr(\mathrm{reply}\le t)\) \%} \\
+\midrule
+Full window & 30s & 223,312 & 8.47 \\
+Full window & 5m & 223,102 & 9.42 \\
+Full window & 1h & 217,472 & 9.82 \\
+Pre-gap contiguous & 30s & 2,854 & 0.04 \\
+Pre-gap contiguous & 5m & 2,842 & 0.35 \\
+Pre-gap contiguous & 1h & 2,063 & 1.36 \\
+Post-gap contiguous & 30s & 220,456 & 8.58 \\
+Post-gap contiguous & 5m & 220,244 & 9.54 \\
+Post-gap contiguous & 1h & 214,610 & 9.94 \\
+Exclude gap overlap (6h) & 30s & 220,456 & 8.58 \\
+Exclude gap overlap (6h) & 5m & 220,246 & 9.54 \\
+Exclude gap overlap (6h) & 1h & 214,616 & 9.94 \\
+Exclude gap overlap (24h) & 30s & 220,456 & 8.58 \\
+Exclude gap overlap (24h) & 5m & 220,246 & 9.54 \\
+Exclude gap overlap (24h) & 1h & 214,616 & 9.94 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{S4. Secondary diagnostic layers}
+\SupplementMixedEvidenceNote
+
+\subsection*{S4.1 Timing-model misspecification}
+
+Parametric timing fits are retained only as diagnostics. Table
+\ref{tab:supp-timing-model-fit} shows that even when event probability is
+approximately calibrated, the fitted conditional timing quantiles materially
+misstate the early-time mass that matters for the flagship control panel.
+
+\begin{table}[h]
+\centering
+\caption{Observed versus fitted timing-model diagnostics for Moltbook. Large
+early-quantile residuals indicate misspecification of the seconds-to-minutes
+shape under a single-family parametric timing fit.}
+\label{tab:supp-timing-model-fit}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Statistic} & \textbf{Observed} & \textbf{Fitted} & \textbf{Residual (fit - obs)} \\
+\midrule
+Event probability (\%) & 9.60 & 9.91 & +0.31 \\
+\(p_{10}\) (s) & 3.67 & 6.00 & +2.33 \\
+\(p_{50}\) (s) & 4.55 & 39.94 & +35.39 \\
+\(p_{90}\) (s) & 50.05 & 134.98 & +84.93 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{S4.2 Model-to-observable coherence}
+
+Table \ref{tab:supp-model-observable-validation} records the in-sample
+coherence check used in the current manuscript. Incidence is approximately
+matched, but non-root branching is underpredicted while depth tails are
+overpredicted, consistent with strong depth dependence that a coarse homogeneous
+fit does not capture.
+
+\begin{table}[h]
+\centering
+\caption{Model-to-observable validation: predicted versus observed incidence,
+non-root branching, and depth tails.}
+\label{tab:supp-model-observable-validation}
+\begingroup
+\setlength{\tabcolsep}{4pt}
+\scriptsize
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+\textbf{Group} & \textbf{Pred. inc. \%} & \textbf{Obs. inc. \%} & \textbf{Pred. branch} & \textbf{Obs. branch} & \textbf{Pred. \(\Pr(D\ge 3)\)} & \textbf{Obs. \(\Pr(D\ge 3)\)} & \textbf{Pred. \(\Pr(D\ge 5)\)} & \textbf{Obs. \(\Pr(D\ge 5)\)} \\
+\midrule
+Overall & 9.91 & 9.60 & 0.104 & 0.134 & 0.0109 & 0.0013 & 0.00012 & 0.00001 \\
+Claimed & 20.49 & 19.23 & 0.229 & 0.274 & 0.0526 & 0.0030 & 0.00276 & 0.00000 \\
+Unclaimed & 8.90 & 8.65 & 0.093 & 0.120 & 0.0087 & 0.0012 & 0.00008 & 0.00001 \\
+Builder/Technical & 1.72 & 1.72 & 0.017 & 0.017 & 0.0003 & 0.0001 & 0.00000 & 0.00000 \\
+Creative & 1.62 & 1.62 & 0.016 & 0.016 & 0.0003 & 0.0000 & 0.00000 & 0.00000 \\
+Other & 2.27 & 2.26 & 0.023 & 0.025 & 0.0005 & 0.0001 & 0.00000 & 0.00000 \\
+Philosophy/Meta & 1.81 & 1.80 & 0.018 & 0.018 & 0.0003 & 0.0002 & 0.00000 & 0.00000 \\
+Social/Casual & 11.36 & 10.95 & 0.121 & 0.154 & 0.0145 & 0.0015 & 0.00021 & 0.00001 \\
+Spam/Low-Signal & 0.88 & 0.88 & 0.009 & 0.009 & 0.0001 & 0.0000 & 0.00000 & 0.00000 \\
+\bottomrule
+\end{tabular}
+}
+\endgroup
+\end{table}
+
+\subsection*{S4.3 Within-thread dependence sensitivity}
+
+Table \ref{tab:supp-dependence-robustness} reports the one-parent-per-thread
+sensitivity used to bound within-thread dependence. Incidence levels move more
+than conditional timing, which is consistent with the interpretation that the
+main bottleneck is whether a reply happens at all rather than how slow replies
+are conditional on occurring.
+
+\begin{table}[h]
+\centering
+\caption{One-parent-per-thread robustness against within-thread dependence.}
+\label{tab:supp-dependence-robustness}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Metric} & \textbf{Primary} & \textbf{One-parent/thread} & \textbf{Abs.\ diff.} & \textbf{Rel.\ diff. \%} \\
+\midrule
+Reply incidence \(\Pr(\delta=1)\) & 0.09596 & 0.07213 & 0.02383 & -24.84 \\
+Conditional \(t_{50}\) (s) & 4.55 & 4.51 & 0.04 & -0.93 \\
+Conditional \(t_{90}\) (s) & 50.05 & 41.08 & 8.97 & -17.92 \\
+Kernel half-life (diagnostic; min) & 0.68451 & 0.43601 & 0.24850 & -36.30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{S4.4 Periodicity details}
+
+The longest contiguous segment contains 220,461 events over 63.5175 hours.
+Modulo-4-hour event-time testing on that segment gives resultant length
+\(r=0.0308\), Rayleigh \(Z=209.57\), Monte Carlo
+\(p=5\times 10^{-6}\), and mean phase 153.2 minutes. This rejects exact
+uniformity statistically, but the concentration is extremely small. In the same
+evidence base, the four-hour target in the binned-count power spectral density
+diagnostics yields first-order autoregressive null-calibrated \(p\)-values
+0.508, 0.501, and 0.556 for 5-, 15-, and 30-minute bins, respectively.
+
+\begin{table}[h]
+\centering
+\caption{Detectability mechanics for the modulo-4-hour periodicity diagnostic.}
+\label{tab:supp-periodicity-detectability}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Component} & \textbf{Value} \\
+\midrule
+Target period \(\tau\) & 4.0 hours \\
+Segment event count & 220,461 \\
+Segment duration & 63.5175 hours \\
+Null Monte Carlo reps (Rayleigh) & 200,000 \\
+Power simulation method & \texttt{noncentral\_chi\_square\_monte\_carlo} \\
+\(\kappa\) grid & 0.0, 0.2, \ldots, 3.0 \\
+Power reps per \(\kappa\) & 50,000 \\
+Seed & 20260208 \\
+Estimated null size at \(\kappa=0\) & 0.04964 \\
+First tested \(\kappa\) with estimated power \(\ge 80\%\) & 0.2 \\
+Estimated power at \(\kappa=0.2\) & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Because the \(\kappa\) grid is coarse, the resulting \(\kappa^\star=0.2\) is a
+grid-crossing reference rather than a sharp detectability threshold. The
+corresponding mean resultant-length mapping is \(\rho\approx 0.0995\), which is
+still well above the observed \(r=0.0308\).
+
+\subsection*{S4.5 Topic keyword sensitivity}
+
+Deterministic keyword remapping is used only to verify the direction of the
+secondary topic contrast, not to estimate semantic effects. Across the baseline
+and expanded trigger dictionaries, with and without exclusions for \emph{Other}
+or small categories, the Social/Casual stratum remains higher-incidence and
+faster-tailed than Philosophy/Meta. Because this layer is secondary and purely
+diagnostic, the detailed variant-by-variant outputs are maintained in the
+reproducibility pipeline rather than repeated as a load-bearing flagship table.

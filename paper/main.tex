@@ -1,0 +1,46 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,booktabs,mathtools}
+\usepackage[numbers]{natbib}
+\usepackage[colorlinks=true,allcolors=blue]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\newcommand{\StageThreeSectionNote}{}
+\newcommand{\SupplementTheoryOnlyNote}{}
+\newcommand{\SupplementMixedEvidenceNote}{}
+
+\title{Coordination Persistence Flagship Paper: Working Draft}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This standalone repo carries forward only the locked Stage 3 theory and methods
+surfaces from the parent project. Fresh data collection, fresh feature
+construction, and all new empirical results will be produced inside this repo.
+\end{abstract}
+
+\section{Scope note}
+
+This working draft intentionally excludes legacy results, discussion, and
+conclusion text. The purpose of the current paper wrapper is to preserve the
+locked theoretical and methodological core while the new flagship evidence base
+is built from fresh data.
+
+\input{paper/sections/model}
+\input{paper/sections/methods}
+
+\appendix
+\input{paper/sections/supplementary_material}
+
+\bibliographystyle{plainnat}
+\bibliography{paper/references}
+
+\end{document}
