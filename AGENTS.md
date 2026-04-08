@@ -1,6 +1,6 @@
-# AGENTS.md — Coordination Persistence Flagship Operating Manual
+# AGENTS.md — Moltbook Coordination Persistence Operating Manual
 
-This repo is the standalone flagship-paper environment. Scientific rigor, provenance, and contract discipline govern all work.
+This repo is the standalone Moltbook coordination persistence research environment. Scientific rigor, provenance, and contract discipline govern all work.
 
 ## Source precedence
 
@@ -31,7 +31,7 @@ Default if unclear: `Worker`.
 - Do not fabricate results, file contents, data provenance, or manuscript claims.
 - Keep edits narrow and additive. Prefer manifests, review logs, and decision entries over silent replacements.
 - Do not commit raw or restricted archive material. Keep `raw/`, `frozen/`, `restricted/`, `data_raw/`, `data_curated/`, `data_features/`, and `outputs/` out of git.
-- If a script or document is not clearly aligned to the flagship design, leave it out rather than porting it forward.
+- If a script or document is not clearly aligned to the current project design, leave it out rather than porting it forward.
 - `State:` inside each task file is authoritative. Folder placement under `.orchestrator/` is only a projection maintained by Planner or Operator.
 - `integration_ready` is only for W0 or W9 interface tasks that are explicitly allowlisted downstream. Empirical archive artifacts under `raw/`, `frozen/`, `qc/`, `derived/`, or `restricted/` may not use `integration_ready`.
 

@@ -75,9 +75,9 @@ def write_project_yaml(root: Path) -> Path:
         "contracts/project.yaml",
         "\n".join(
             [
-                "project_id: coordination-persistence-flagship",
-                "project_name: coordination-persistence-flagship",
-                "display_name: \"Coordination Persistence Flagship\"",
+                "project_id: moltbook-coordination-persistence",
+                "project_name: moltbook-coordination-persistence",
+                "display_name: \"Moltbook Coordination Persistence\"",
                 "mode: empirical",
                 "status: test",
                 "",

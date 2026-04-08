@@ -1,6 +1,6 @@
 # contracts/
 
-Machine-readable project, runtime, and artifact contracts for the flagship research repo.
+Machine-readable project, runtime, and artifact contracts for the Moltbook coordination persistence repo.
 
 ## Authority boundary
 
