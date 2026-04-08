@@ -1,0 +1,29 @@
+version: 1
+artifact: thread_geometry
+authority:
+  - docs/stage3_theory_framework_packet.cleaned.md
+  - docs/data_acquisition_plan.md
+grain: "one row per thread"
+required_fields:
+  - archive_name
+  - archive_revision
+  - thread_id
+  - community_label
+  - root_post_created_at_utc
+  - post_author_id_hash
+  - n_comments
+  - max_depth
+  - root_direct_child_count
+  - nonroot_branching_mean
+  - branching_by_depth_json
+  - reciprocity_rate
+  - reentry_rate_paper
+  - reentry_rate_resolvedauthors
+  - resolved_author_comment_count
+  - missing_author_comment_count
+  - quality_flag
+validation_rules:
+  - "root post depth is 0"
+  - "comment depth is reconstructed recursively from parent chains"
+  - "reentry_rate_paper follows the non-root comment sequence rule"
+  - "top-level comments use the root post author as parent author"

@@ -1,0 +1,32 @@
+version: 1
+artifact: control_panel_summary
+authority:
+  - docs/stage3_theory_framework_packet.cleaned.md
+  - docs/data_acquisition_plan.md
+grain: "one row per archive, window variant, horizon, and optional stratum"
+required_fields:
+  - archive_name
+  - archive_revision
+  - window_variant
+  - horizon_label
+  - stratum_family
+  - stratum_value
+  - n_parents
+  - n_riskset
+  - n_replied
+  - n_within_h
+  - p_obs
+  - pi_h
+  - phi_h
+  - q_h
+  - t50_seconds
+  - t90_seconds
+  - t95_seconds
+  - reply_le_30s_given_reply
+  - reply_le_5m_given_reply
+  - benchmark_flag
+validation_rules:
+  - "use only same-risk-set denominators within each horizon summary"
+  - "do not create or store p_h columns"
+  - "store p_obs separately as descriptive only"
+  - "q_h must equal pi_h * phi_h within machine tolerance"

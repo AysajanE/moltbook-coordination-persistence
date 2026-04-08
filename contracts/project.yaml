@@ -1,0 +1,168 @@
+project_id: coordination-persistence-flagship
+project_name: coordination-persistence-flagship
+display_name: "Coordination Persistence Flagship"
+mode: empirical
+status: swarm_bootstrap_phase1_complete
+
+primary_question: "Within fixed horizons, is continuation in Moltbook constrained more by reply incidence than by conditional reply speed?"
+primary_outputs:
+  - "manifests/"
+  - "qc/"
+  - "derived/"
+  - "paper/"
+  - "reports/status/"
+
+default_execution_engines:
+  routine_repo_tasks:
+    name: local_swarm
+    control_plane_root: ".orchestrator"
+    runner_path: "scripts/swarm.py"
+    notes:
+      - "Default for routine repo task execution, deterministic gates, and manual Operator-supervised delivery."
+  high_stakes_operator_tasks:
+    name: manual_operator_loop
+    owner_role: Operator
+    use_cases:
+      - "branch and worktree stewardship"
+      - "Judge launch and review handling"
+      - "merge and cleanup"
+      - "release-layer design when later authorized"
+
+paper_substrate:
+  type: latex
+  source_root: "paper/"
+  entrypoint: "paper/main.tex"
+
+scientific_contract:
+  top_authority: "docs/stage3_theory_framework_packet.cleaned.md"
+  operational_plan: "docs/data_acquisition_plan.md"
+  locked_sections:
+    - "paper/sections/model.tex"
+    - "paper/sections/methods.tex"
+    - "paper/sections/supplementary_material.tex"
+  provisional_legacy_scripts:
+    - "analysis/flagship_control_panel_margins.py"
+    - "analysis/incidence_horizon_standardization.py"
+
+artifact_dag:
+  - stage_id: raw_acquisition
+    depends_on: []
+    producing_tasks:
+      - "T020"
+      - "T065"
+    required_artifacts:
+      - "manifests/simulamet_manifest.yaml"
+      - "manifests/moltnet_manifest.yaml"
+  - stage_id: canonical_freezes
+    depends_on:
+      - raw_acquisition
+    producing_tasks:
+      - "T025"
+      - "T030"
+      - "T035"
+      - "T070"
+    required_artifacts:
+      - "manifests/schema_crosswalk.yaml"
+      - "qc/archive_qc_report_simulamet.md"
+      - "frozen/simulamet_firstweek_lateststate/"
+      - "frozen/moltnet_firstweek_aligned/"
+      - "frozen/moltnet_fullrelease/"
+      - "qc/archive_qc_report_moltnet.md"
+  - stage_id: derived_tables
+    depends_on:
+      - canonical_freezes
+    producing_tasks:
+      - "T040"
+      - "T045"
+      - "T050"
+      - "T072"
+    required_artifacts:
+      - "derived/parent_units_simulamet.parquet"
+      - "derived/control_panel_summary_simulamet.parquet"
+      - "derived/thread_geometry_simulamet.parquet"
+      - "derived/periodicity_input_simulamet.parquet"
+      - "derived/archive_metadata_audit.parquet"
+      - "derived/parent_units_moltnet.parquet"
+      - "derived/control_panel_summary_moltnet.parquet"
+  - stage_id: analysis_outputs
+    depends_on:
+      - derived_tables
+    producing_tasks:
+      - "T055"
+      - "T060"
+    required_artifacts:
+      - "analysis/flagship_control_panel_margins.py"
+      - "analysis/incidence_horizon_standardization.py"
+  - stage_id: paper_integration
+    depends_on:
+      - analysis_outputs
+    producing_tasks:
+      - "T075"
+    required_artifacts:
+      - "paper/main.tex"
+
+battle_test_queue:
+  - task_id: "T020"
+    workstream: W1
+    summary: "Acquire the canonical SimulaMet archive and record immutable provenance."
+    required_for_release: true
+  - task_id: "T025"
+    workstream: W2
+    summary: "Discover schema differences and freeze the crosswalk."
+    required_for_release: true
+  - task_id: "T030"
+    workstream: W2
+    summary: "Construct the first-week latest-state SimulaMet freeze."
+    required_for_release: true
+  - task_id: "T035"
+    workstream: W2
+    summary: "Produce the archive QC packet and reconstruction benchmarks."
+    required_for_release: true
+  - task_id: "T040"
+    workstream: W3
+    summary: "Build the canonical `parent_units` table."
+    required_for_release: true
+  - task_id: "T045"
+    workstream: W3
+    summary: "Build the canonical `control_panel_summary` table."
+    required_for_release: true
+  - task_id: "T050"
+    workstream: W3
+    summary: "Build geometry, periodicity, and archive audit tables."
+    required_for_release: true
+  - task_id: "T055"
+    workstream: W4
+    summary: "Rewrite legacy estimand scripts against the canonical flagship tables."
+    required_for_release: true
+  - task_id: "T060"
+    workstream: W4
+    summary: "Generate fresh flagship evidence for H1-H5 and P2."
+    required_for_release: true
+  - task_id: "T065"
+    workstream: W1
+    summary: "Acquire the MoltNet archive with the same provenance discipline."
+    required_for_release: true
+  - task_id: "T070"
+    workstream: W2
+    summary: "Build MoltNet aligned and full-release freezes plus the QC packet."
+    required_for_release: true
+  - task_id: "T072"
+    workstream: W3
+    summary: "Build MoltNet derived tables and record any geometry transport limits."
+    required_for_release: true
+  - task_id: "T075"
+    workstream: W5
+    summary: "Integrate fresh evidence into the LaTeX paper surface."
+    required_for_release: true
+  - task_id: "T080"
+    workstream: W9
+    summary: "Design a flagship-specific release layer after the science path is stable."
+    required_for_release: false
+
+risk_policy:
+  stop_conditions:
+    - "Stage 3 authority ambiguity"
+    - "new scientific assumption required"
+    - "missing credentials"
+    - "QC failure beyond tolerance"
+    - "need to edit outside allowed paths"

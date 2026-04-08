@@ -1,0 +1,42 @@
+version: 1
+artifact: parent_units
+authority:
+  - docs/stage3_theory_framework_packet.cleaned.md
+  - docs/data_acquisition_plan.md
+grain: "one row per candidate parent comment"
+required_fields:
+  - archive_name
+  - archive_revision
+  - source_snapshot_id
+  - thread_id
+  - comment_id
+  - parent_comment_id
+  - author_id_hash
+  - post_author_id_hash
+  - community_label
+  - claimed_status_group
+  - topic_category
+  - created_at_utc
+  - segment_id
+  - segment_end_utc
+  - first_child_comment_id
+  - first_child_created_at_utc
+  - T_seconds
+  - C_seconds
+  - delta
+  - R_30s
+  - Y_30s
+  - R_5m
+  - Y_5m
+  - R_1h
+  - Y_1h
+  - depth_from_root
+  - raw_depth
+  - gap_overlap_6h_flag
+  - gap_overlap_24h_flag
+  - quality_flag
+validation_rules:
+  - "root posts are excluded"
+  - "direct children are matched within thread by parent_comment_id"
+  - "ties for first child are broken lexicographically on child comment_id"
+  - "summary estimates derived from this table must satisfy q_h = pi_h * phi_h within machine tolerance"

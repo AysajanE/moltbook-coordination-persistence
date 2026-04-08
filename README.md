@@ -7,7 +7,7 @@ Only four things were carried forward from the parent project:
 - the locked Stage 3 theory and methods text
 - the Stage 3 authority packet
 - fresh-data collection, curation, and validation scaffolding
-- two small Stage 3 estimand scripts that are still methodologically aligned
+- two compact Stage 3 estimand scripts that remain provisional until they are rewritten against the flagship derived tables
 
 The following were intentionally not carried forward:
 
@@ -16,24 +16,52 @@ The following were intentionally not carried forward:
 - the old discussion, conclusion, and manuscript wrappers
 - the large legacy end-to-end analysis script and legacy presentation-layer scripts
 
-The repo boundary is therefore simple:
+## Repo surfaces
 
-- `docs/` holds the authority packet, the fresh data acquisition plan, the migration manifest, and the new decision log.
-- `scripts/` holds the two acquisition entrypoints.
-- `analysis/` holds only audited collection/curation/validation scripts plus two compact Stage 3 estimand scripts.
-- `paper/` holds the locked theory/method sections and a minimal working wrapper.
+- `docs/` holds the authority packet, the fresh data acquisition plan, the migration manifest, the deployment plan, and the decision log.
+- `scripts/` holds acquisition entrypoints plus the swarm runtime and gate tooling.
+- `analysis/` holds audited collection, curation, validation, and analysis scripts. These scripts are not authority documents.
+- `paper/` holds the locked theory and methods sections plus the LaTeX manuscript wrapper.
+- `.orchestrator/` is the file-based control plane for Planner, Worker, Judge, and Operator.
+- `contracts/` is the machine-readable project and runtime contract layer.
+- `reports/status/` holds durable run manifests and Judge review logs.
 
-Current status:
+## Authority order
+
+When repo surfaces disagree, use this order:
+
+1. `docs/stage3_theory_framework_packet.cleaned.md`
+2. `docs/data_acquisition_plan.md`
+3. locked paper sections under `paper/sections/`
+4. `contracts/`
+5. `.orchestrator/workstreams.md`
+6. task files
+7. handoff notes
+
+The carried-over analysis scripts are helpers only. If they conflict with the Stage 3 packet or the acquisition plan, the packet and plan win.
+
+## Current execution model
+
+This is not yet a full autonomous research architecture. The current loop is:
+
+1. Planner defines or updates the next task in `.orchestrator/`.
+2. Operator launches the Worker task.
+3. Worker executes one scoped task and produces a run manifest.
+4. Operator launches Judge review.
+5. Judge approves or returns the task.
+6. Operator reviews, merges, sweeps, cleans the branch, and launches the next task.
+
+## Current status
 
 - Stage 3 theory and methods are locked.
 - Old evidence is not active in this repo.
-- Fresh data acquisition and fresh feature construction are the next research tasks.
+- A flagship-specific research swarm bootstrap is now in place for manual Operator, Worker, and Judge tasking.
+- Fresh data acquisition and fresh feature construction remain the next scientific tasks.
 - A new feature-builder for Stage 3 analysis has not yet been implemented here.
 
-Recommended starting sequence:
+## Recommended starting sequence
 
-1. Download a fresh HF Moltbook archive with `scripts/download_moltbook_observatory_archive.py`.
-2. Run schema discovery, curation, and validation with the `analysis/hf_archive_*.py` scripts.
-3. Run live public-API collection with `scripts/run_moltbook_live_campaign.py` when needed.
-4. Build a new Stage 3 feature layer from the fresh archive surface.
-5. Run the carried-forward Stage 3 estimand scripts on the new feature layer.
+1. Run `make gate` and `make test` to validate the swarm bootstrap.
+2. Review `docs/swarm_deployment_plan.md`, `.orchestrator/workstreams.md`, and the seeded backlog.
+3. Start with `T020` through `T050` in the archive-first SimulaMet path.
+4. Keep `paper/main.tex` as the manuscript entrypoint; do not migrate the paper substrate just to match the pilot swarm.

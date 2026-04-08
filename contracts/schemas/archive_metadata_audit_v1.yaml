@@ -1,0 +1,26 @@
+version: 1
+artifact: archive_metadata_audit
+authority:
+  - docs/stage3_theory_framework_packet.cleaned.md
+  - docs/data_acquisition_plan.md
+grain: "one row per archive release or revision"
+required_fields:
+  - archive_name
+  - archive_revision
+  - release_tag
+  - acquisition_utc
+  - license
+  - total_rows_by_table_json
+  - time_span_start_utc
+  - time_span_end_utc
+  - duplicate_count_by_table_json
+  - timestamp_parse_success_rate
+  - post_link_success_rate
+  - parent_link_success_rate
+  - missing_author_rate
+  - unresolved_community_rate
+  - severe_gap_count
+  - notes
+validation_rules:
+  - "archive-level provenance must remain machine-readable"
+  - "the published empirical release must include this file"

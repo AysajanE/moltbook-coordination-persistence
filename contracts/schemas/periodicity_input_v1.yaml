@@ -1,0 +1,21 @@
+version: 1
+artifact: periodicity_input
+authority:
+  - docs/stage3_theory_framework_packet.cleaned.md
+  - docs/data_acquisition_plan.md
+grain: "one row per comment event in the longest contiguous segment"
+required_fields:
+  - archive_name
+  - archive_revision
+  - segment_id
+  - comment_id
+  - created_at_utc
+  - phase_mod_4h_seconds
+  - bin_5m
+  - bin_15m
+  - bin_30m
+  - window_start_utc
+  - window_end_utc
+validation_rules:
+  - "use only the longest contiguous segment for each archive-window combination"
+  - "do not mix across disjoint segments"
