@@ -1,0 +1,22 @@
+{
+  "schema_version": "hf_archive_qc_benchmarks.v1",
+  "archive_name": "simulamet",
+  "source_basis": "Locked Stage 3 packet and public manuscript acceptance anchors",
+  "metrics": {
+    "candidate_parent_units": 223316,
+    "comments_rows": 226173,
+    "gap_end": "2026-02-02T04:20:50+00:00",
+    "gap_hours": 41.7,
+    "gap_posts": 38166,
+    "gap_snapshots": 39,
+    "gap_start": "2026-01-31T10:37:53+00:00",
+    "gap_word_frequency": 5039,
+    "missing_author_ids": 906,
+    "p_obs": 0.096,
+    "q_1h": 0.0982,
+    "q_5m": 0.0942,
+    "t50_seconds": 4.55,
+    "t90_seconds": 50.05,
+    "unique_comment_ids": 223317
+  }
+}

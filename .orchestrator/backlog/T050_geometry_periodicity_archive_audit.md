@@ -52,7 +52,7 @@ The flagship design requires thread geometry, periodicity inputs, archive metada
 - Workstream: W3
 - Assigned role: Worker
 - Suggested branch or worktree name: `T050_geometry_periodicity`
-- Allowed paths: `analysis/`, `derived/`
+- Allowed paths: `analysis/build_thread_geometry.py`, `analysis/build_periodicity_input.py`, `analysis/build_archive_metadata_audit.py`, `derived/thread_geometry_simulamet.parquet`, `derived/periodicity_input_simulamet.parquet`, `derived/archive_metadata_audit.parquet`, `derived/submolt_category_dictionary_v1.csv`
 - Disallowed paths: authority docs, contracts, paper, raw, and restricted surfaces
 - Stop conditions: Stage 3 ambiguity or path-boundary breaches
 
@@ -65,9 +65,9 @@ The flagship design requires thread geometry, periodicity inputs, archive metada
 
 ## Outputs
 
-- Code: new or rewritten geometry and audit builders under `analysis/`
-- Data or manifests: geometry table, periodicity input table, archive audit table, frozen topic dictionary
-- Reports or docs: notes on linkage quality and geometry transportability
+- Code: `analysis/build_thread_geometry.py`, `analysis/build_periodicity_input.py`, `analysis/build_archive_metadata_audit.py`
+- Data or manifests: `derived/thread_geometry_simulamet.parquet`, `derived/periodicity_input_simulamet.parquet`, `derived/archive_metadata_audit.parquet`, `derived/submolt_category_dictionary_v1.csv`
+- Reports or docs: none beyond the declared derived outputs
 
 ## Success Criteria
 

@@ -18,7 +18,7 @@ allowed_paths:
   - "docs/runbook_swarm_automation.md"
   - "scripts/quality_gates.py"
   - "scripts/swarm.py"
-  - "reports/status/release_layer_design.md"
+  - "reports/status/release_layer_design.json"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -26,7 +26,7 @@ disallowed_paths:
   - "paper/sections/methods.tex"
   - "paper/sections/supplementary_material.tex"
 outputs:
-  - "reports/status/release_layer_design.md"
+  - "reports/status/release_layer_design.json"
 gates:
   - "make gate"
   - "make test"
@@ -46,7 +46,7 @@ Release assembly is explicitly deferred until the scientific path is stable. Whe
 - Workstream: W9
 - Assigned role: Operator
 - Suggested branch or worktree name: `T080_release_layer`
-- Allowed paths: runtime docs, runtime scripts, `reports/status/`, `contracts/`
+- Allowed paths: `docs/runbook_swarm.md`, `docs/runbook_swarm_automation.md`, `scripts/quality_gates.py`, `scripts/swarm.py`, `reports/status/release_layer_design.json`
 - Disallowed paths: authority docs and locked paper sections
 - Stop conditions: Stage 3 ambiguity or path-boundary breaches
 
@@ -59,9 +59,9 @@ Release assembly is explicitly deferred until the scientific path is stable. Whe
 
 ## Outputs
 
-- Code: release-layer runtime or gate changes if later authorized
-- Data or manifests: release status design artifacts under `reports/status/`
-- Reports or docs: revised runbooks or contracts for the release layer
+- Code: `docs/runbook_swarm.md`, `docs/runbook_swarm_automation.md`, `scripts/quality_gates.py`, `scripts/swarm.py`
+- Data or manifests: none
+- Reports or docs: `reports/status/release_layer_design.json`
 
 ## Success Criteria
 
@@ -77,7 +77,7 @@ Release assembly is explicitly deferred until the scientific path is stable. Whe
 
 ## Validation / Commands
 
-- `python scripts/quality_gates.py --json > reports/status/release_layer_design.md`
+- `python scripts/quality_gates.py --json > reports/status/release_layer_design.json`
 - `make gate`
 - `make test`
 

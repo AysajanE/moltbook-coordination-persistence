@@ -48,7 +48,7 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 - Workstream: W2
 - Assigned role: Worker
 - Suggested branch or worktree name: `T030_simulamet_freeze`
-- Allowed paths: `analysis/hf_archive_curate.py`, `frozen/`, `qc/`
+- Allowed paths: `analysis/hf_archive_curate.py`, `frozen/simulamet_firstweek_lateststate/`, `qc/simulamet_dedup_conflicts.csv`, `manifests/simulamet_firstweek_freeze_manifest.json`
 - Disallowed paths: authority docs, contracts, paper, and derived outputs
 - Stop conditions: Stage 3 ambiguity or path-boundary breaches
 
@@ -61,9 +61,9 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 
 ## Outputs
 
-- Code: updated curation script
-- Data or manifests: canonical freeze, dedup conflict log
-- Reports or docs: notes on latest-state reconstruction decisions
+- Code: updated `analysis/hf_archive_curate.py` only if required by the freeze build
+- Data or manifests: `frozen/simulamet_firstweek_lateststate/...`, `qc/simulamet_dedup_conflicts.csv`, `manifests/simulamet_firstweek_freeze_manifest.json`
+- Reports or docs: none beyond the declared outputs above
 
 ## Success Criteria
 

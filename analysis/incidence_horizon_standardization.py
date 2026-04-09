@@ -1,147 +1,261 @@
 #!/usr/bin/env python3
-"""Horizon-incidence standardization for censoring-robust persistence reporting.
-
-Outputs manuscript-facing tables that report:
-- descriptive ever-reply incidence (secondary), and
-- horizon-standardized incidence at 5 minutes and 1 hour (primary),
-with explicit risk-set denominators.
-"""
+"""Append horizon-standardization, geometry, and periodicity notes to the flagship report."""
 
 from __future__ import annotations
 
 import argparse
-import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
 
-DEFAULT_OUT_TABLE = Path("outputs/analysis/horizon_incidence_by_group.csv")
-DEFAULT_OUT_SUMMARY = Path("outputs/analysis/horizon_incidence_summary.json")
-HORIZONS = ((300, "5m"), (3600, "1h"))
+PRIMARY_WINDOWS = (
+    "full_window",
+    "pre_gap_contiguous",
+    "post_gap_contiguous",
+    "exclude_gap_overlap_6h",
+    "exclude_gap_overlap_24h",
+)
+PRIMARY_HORIZONS = (
+    ("5m", "R_5m", "Y_5m"),
+    ("1h", "R_1h", "Y_1h"),
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compute censoring-robust horizon incidence by reporting group."
+        description="Append horizon-standardization diagnostics to the flagship markdown report."
     )
-    parser.add_argument("--survival-path", type=Path, required=True)
-    parser.add_argument("--raw-agents-path", type=Path, required=True)
-    parser.add_argument("--out-table", type=Path, default=DEFAULT_OUT_TABLE)
-    parser.add_argument("--out-summary", type=Path, default=DEFAULT_OUT_SUMMARY)
+    parser.add_argument("--parent-units", type=Path, required=True)
+    parser.add_argument("--append-report", type=Path, required=True)
     return parser.parse_args()
+
+
+def load_parent_units(path: Path) -> pd.DataFrame:
+    frame = pd.read_parquet(path).copy()
+    required = {
+        "archive_name",
+        "archive_revision",
+        "thread_id",
+        "segment_id",
+        "delta",
+        "R_5m",
+        "Y_5m",
+        "R_1h",
+        "Y_1h",
+        "gap_overlap_6h_flag",
+        "gap_overlap_24h_flag",
+    }
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise SystemExit(f"parent_units missing required columns: {', '.join(missing)}")
+    return frame
 
 
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def load_survival(path: Path) -> pd.DataFrame:
-    df = pd.read_parquet(path).copy()
-    required = {
-        "comment_agent_id",
-        "submolt_category",
-        "created_at_utc",
-        "first_reply_at",
-        "event_observed",
-        "duration_hours",
-    }
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"Missing required survival columns: {sorted(missing)}")
-
-    df["created_at_utc"] = pd.to_datetime(df["created_at_utc"], utc=True)
-    df["first_reply_at"] = pd.to_datetime(df["first_reply_at"], utc=True, errors="coerce")
-    df["event_observed"] = (
-        pd.to_numeric(df["event_observed"], errors="coerce").fillna(0).astype(int)
-    )
-    df["duration_hours"] = pd.to_numeric(df["duration_hours"], errors="coerce")
-    df["reply_seconds"] = np.where(
-        df["event_observed"].astype(bool),
-        (df["first_reply_at"] - df["created_at_utc"]).dt.total_seconds(),
-        np.nan,
-    )
-    return df
+def fmt(value: object, digits: int = 4) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return f"{value:.{digits}f}"
+    return str(value)
 
 
-def attach_claim_status(survival: pd.DataFrame, raw_agents_path: Path) -> pd.DataFrame:
-    agents = pd.read_parquet(raw_agents_path, columns=["id", "is_claimed", "dump_date"]).copy()
-    agents["dump_date"] = pd.to_datetime(agents["dump_date"], errors="coerce")
-    agents = (
-        agents.sort_values(["id", "dump_date"], kind="stable")
-        .drop_duplicates("id", keep="last")
-    )
-    claims = agents.rename(columns={"id": "comment_agent_id"})[["comment_agent_id", "is_claimed"]]
+def markdown_table(frame: pd.DataFrame, columns: list[tuple[str, str]]) -> str:
+    lines = [
+        "| " + " | ".join(label for _, label in columns) + " |",
+        "| " + " | ".join(["---"] * len(columns)) + " |",
+    ]
+    for row in frame.itertuples(index=False):
+        values = [fmt(getattr(row, key)) for key, _ in columns]
+        lines.append("| " + " | ".join(values) + " |")
+    return "\n".join(lines)
 
-    out = survival.merge(claims, on="comment_agent_id", how="left", validate="many_to_one")
-    out["claimed_group"] = "Unknown"
-    out.loc[out["is_claimed"] == 1, "claimed_group"] = "Claimed"
-    out.loc[out["is_claimed"] == 0, "claimed_group"] = "Unclaimed"
+
+def window_variants(frame: pd.DataFrame) -> list[tuple[str, pd.Series]]:
+    variants: list[tuple[str, pd.Series]] = [("full_window", pd.Series(True, index=frame.index))]
+    segment_ids = sorted(str(value) for value in frame["segment_id"].dropna().unique())
+    if len(segment_ids) > 1:
+        variants.append(("pre_gap_contiguous", frame["segment_id"].astype("string") == segment_ids[0]))
+        variants.append(("post_gap_contiguous", frame["segment_id"].astype("string") == segment_ids[-1]))
+    variants.append(("exclude_gap_overlap_6h", frame["gap_overlap_6h_flag"] == 0))
+    variants.append(("exclude_gap_overlap_24h", frame["gap_overlap_24h_flag"] == 0))
+    return variants
+
+
+def horizon_standardization_table(frame: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    for window_name, mask in window_variants(frame):
+        subset = frame.loc[mask].copy()
+        if subset.empty:
+            continue
+        row: dict[str, object] = {
+            "window_variant": window_name,
+            "n_parents": int(len(subset)),
+            "p_obs": float(subset["delta"].mean()) if len(subset) else np.nan,
+        }
+        for horizon_label, risk_col, within_col in PRIMARY_HORIZONS:
+            risk_n = int(subset[risk_col].sum())
+            within_n = int(subset[within_col].sum())
+            row[f"n_riskset_{horizon_label}"] = risk_n
+            row[f"q_{horizon_label}"] = (within_n / risk_n) if risk_n else np.nan
+        rows.append(row)
+    out = pd.DataFrame(rows)
+    order = {name: i for i, name in enumerate(PRIMARY_WINDOWS)}
+    out.sort_values("window_variant", key=lambda s: s.map(order).fillna(99), inplace=True, kind="stable")
     return out
 
 
-def horizon_incidence(df: pd.DataFrame, horizon_seconds: int) -> tuple[int, float]:
-    event = df["event_observed"].astype(bool)
-    reply_seconds = pd.to_numeric(df["reply_seconds"], errors="coerce")
-    followup_seconds = pd.to_numeric(df["duration_hours"], errors="coerce") * 3600.0
-    risk_set = (followup_seconds >= horizon_seconds) | (event & (reply_seconds <= horizon_seconds))
-    n_risk = int(risk_set.sum())
-    if n_risk == 0:
-        return n_risk, np.nan
-    p = float((event & (reply_seconds <= horizon_seconds) & risk_set).sum()) / float(n_risk)
-    return n_risk, p * 100.0
+def thread_level_geometry_diagnostic(parent_units: pd.DataFrame, derived_root: Path, archive_name: str) -> str:
+    path = derived_root / f"thread_geometry_{archive_name}.parquet"
+    if not path.exists():
+        return "_No thread_geometry artifact was found beside parent_units, so H3 geometry notes were skipped._"
+
+    geometry = pd.read_parquet(path).copy()
+    if geometry.empty:
+        return "_thread_geometry was present but empty._"
+
+    thread_rows: list[dict[str, object]] = []
+    for thread_id, subset in parent_units.groupby("thread_id", dropna=False, sort=False):
+        row: dict[str, object] = {"thread_id": thread_id}
+        row["q_5m"] = float(subset["Y_5m"].sum()) / float(subset["R_5m"].sum()) if int(subset["R_5m"].sum()) else np.nan
+        row["q_1h"] = float(subset["Y_1h"].sum()) / float(subset["R_1h"].sum()) if int(subset["R_1h"].sum()) else np.nan
+        row["p_obs"] = float(subset["delta"].mean()) if len(subset) else np.nan
+        thread_rows.append(row)
+
+    thread_panel = pd.DataFrame(thread_rows)
+    joined = geometry.merge(thread_panel, on="thread_id", how="left", validate="one_to_one")
+    summary = pd.DataFrame(
+        [
+            {
+                "n_threads": int(len(joined)),
+                "mean_max_depth": joined["max_depth"].mean(),
+                "mean_nonroot_branching": joined["nonroot_branching_mean"].mean(),
+                "mean_reciprocity_rate": joined["reciprocity_rate"].mean(),
+                "mean_reentry_rate": joined["reentry_rate_paper"].mean(),
+                "corr_q5_max_depth": joined["q_5m"].corr(joined["max_depth"], method="spearman"),
+                "corr_q5_reentry": joined["q_5m"].corr(joined["reentry_rate_paper"], method="spearman"),
+                "corr_q1_max_depth": joined["q_1h"].corr(joined["max_depth"], method="spearman"),
+                "threads_with_missing_author_comments": int((joined["missing_author_comment_count"] > 0).sum()),
+            }
+        ]
+    )
+    return markdown_table(
+        summary,
+        [
+            ("n_threads", "Threads"),
+            ("mean_max_depth", "Mean max depth"),
+            ("mean_nonroot_branching", "Mean branching"),
+            ("mean_reciprocity_rate", "Mean reciprocity"),
+            ("mean_reentry_rate", "Mean reentry"),
+            ("corr_q5_max_depth", "Spearman(q_5m,max_depth)"),
+            ("corr_q5_reentry", "Spearman(q_5m,reentry)"),
+            ("corr_q1_max_depth", "Spearman(q_1h,max_depth)"),
+            ("threads_with_missing_author_comments", "Threads w/ missing author"),
+        ],
+    )
 
 
-def summarize_group(df: pd.DataFrame, group_family: str, group_label: str) -> dict[str, Any]:
-    row: dict[str, Any] = {
-        "group_family": group_family,
-        "group_label": group_label,
-        "n_parents": int(len(df)),
-        "n_reply_any": int(df["event_observed"].sum()),
-        "p_obs_any_reply_pct": float(df["event_observed"].mean()) * 100.0 if len(df) else np.nan,
-    }
-    for horizon_seconds, suffix in HORIZONS:
-        risk_set_n, p_h = horizon_incidence(df, horizon_seconds=horizon_seconds)
-        row[f"risk_set_n_{suffix}"] = risk_set_n
-        row[f"p_reply_within_{suffix}_pct"] = p_h
-    return row
+def periodicity_diagnostic(derived_root: Path, archive_name: str) -> str:
+    path = derived_root / f"periodicity_input_{archive_name}.parquet"
+    if not path.exists():
+        return "_No periodicity_input artifact was found beside parent_units, so H5 notes were skipped._"
+
+    periodicity = pd.read_parquet(path).copy()
+    if periodicity.empty:
+        return "_periodicity_input was present but empty._"
+
+    window_start = pd.to_datetime(periodicity["window_start_utc"].iloc[0], utc=True)
+    window_end = pd.to_datetime(periodicity["window_end_utc"].iloc[0], utc=True)
+    duration_hours = (window_end - window_start).total_seconds() / 3600.0
+    phases = pd.to_numeric(periodicity["phase_mod_4h_seconds"], errors="coerce").dropna().to_numpy()
+    angles = 2.0 * np.pi * phases / (4.0 * 3600.0)
+    resultant_length = float(np.abs(np.exp(1j * angles).mean())) if len(angles) else np.nan
+    bin_counts_5m = periodicity.groupby("bin_5m").size()
+
+    summary = pd.DataFrame(
+        [
+            {
+                "segment_id": str(periodicity["segment_id"].iloc[0]),
+                "n_events": int(len(periodicity)),
+                "duration_hours": duration_hours,
+                "resultant_length": resultant_length,
+                "min_5m_bin_count": int(bin_counts_5m.min()) if not bin_counts_5m.empty else 0,
+                "max_5m_bin_count": int(bin_counts_5m.max()) if not bin_counts_5m.empty else 0,
+                "meets_48h_target": duration_hours >= 48.0,
+            }
+        ]
+    )
+    return markdown_table(
+        summary,
+        [
+            ("segment_id", "Segment"),
+            ("n_events", "Events"),
+            ("duration_hours", "Duration_h"),
+            ("resultant_length", "Resultant"),
+            ("min_5m_bin_count", "Min 5m bin"),
+            ("max_5m_bin_count", "Max 5m bin"),
+            ("meets_48h_target", "Meets 48h target"),
+        ],
+    )
+
+
+def build_appendix(parent_units: pd.DataFrame, input_path: Path) -> str:
+    archive_name = str(parent_units["archive_name"].iloc[0])
+    archive_revision = str(parent_units["archive_revision"].iloc[0])
+    derived_root = input_path.parent
+    standardization = horizon_standardization_table(parent_units)
+
+    parts = [
+        "",
+        "## Horizon Standardization",
+        "",
+        f"Appended at: {datetime.now(UTC).isoformat()}",
+        f"Archive: {archive_name}",
+        f"Archive revision: {archive_revision}",
+        f"Input parent_units: {input_path}",
+        "",
+        markdown_table(
+            standardization,
+            [
+                ("window_variant", "Window"),
+                ("n_parents", "Parents"),
+                ("p_obs", "p_obs"),
+                ("n_riskset_5m", "Risk set 5m"),
+                ("q_5m", "q_5m"),
+                ("n_riskset_1h", "Risk set 1h"),
+                ("q_1h", "q_1h"),
+            ],
+        ),
+        "",
+        "This section recomputes the headline horizon-standardized completion rates directly from parent_units so the markdown report is not coupled to any legacy survival-table surface.",
+        "",
+        "## H3 Geometry Diagnostic",
+        "",
+        thread_level_geometry_diagnostic(parent_units, derived_root, archive_name),
+        "",
+        "## H5 Periodicity Diagnostic",
+        "",
+        periodicity_diagnostic(derived_root, archive_name),
+    ]
+    return "\n".join(parts).rstrip() + "\n"
 
 
 def main() -> None:
     args = parse_args()
-    survival = load_survival(args.survival_path)
-    survival = attach_claim_status(survival, raw_agents_path=args.raw_agents_path)
-
-    rows: list[dict[str, Any]] = []
-    rows.append(summarize_group(survival, "overall", "Overall"))
-
-    claimable = survival[survival["claimed_group"].isin(["Claimed", "Unclaimed"])].copy()
-    for label in ["Claimed", "Unclaimed"]:
-        subset = claimable[claimable["claimed_group"] == label].copy()
-        rows.append(summarize_group(subset, "claimed_status", label))
-
-    for label, subset in survival.groupby("submolt_category", sort=True):
-        rows.append(summarize_group(subset.copy(), "submolt_category", str(label)))
-
-    out_df = pd.DataFrame(rows)
-    order = {"overall": 0, "claimed_status": 1, "submolt_category": 2}
-    out_df["__order"] = out_df["group_family"].map(order).fillna(99).astype(int)
-    out_df = out_df.sort_values(["__order", "group_label"], kind="stable").drop(columns="__order")
-
-    ensure_parent(args.out_table)
-    out_df.to_csv(args.out_table, index=False)
-
-    summary = {
-        "generated_at_utc": datetime.now(UTC).isoformat(),
-        "survival_input_path": str(args.survival_path),
-        "raw_agents_input_path": str(args.raw_agents_path),
-        "horizons_seconds": [h for h, _ in HORIZONS],
-        "output_table_csv": str(args.out_table),
-    }
-    ensure_parent(args.out_summary)
-    args.out_summary.write_text(json.dumps(summary, indent=2))
+    parent_units = load_parent_units(args.parent_units)
+    appendix = build_appendix(parent_units, args.parent_units)
+    ensure_parent(args.append_report)
+    existing = args.append_report.read_text(encoding="utf-8") if args.append_report.exists() else ""
+    args.append_report.write_text(existing.rstrip() + appendix, encoding="utf-8")
 
 
 if __name__ == "__main__":

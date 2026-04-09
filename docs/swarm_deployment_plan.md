@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Deploy the current research swarm framework into this repo as a flagship-specific project instance. This deployment is not a repo migration into the STR pilot and is not yet a claim of full autonomous research.
+Deploy the current research swarm framework into this repo as a flagship-specific, Operator-supervised control-plane/runtime instance. This deployment is not a repo migration into the STR pilot and is not a claim that the repo has already been exercised as a fully validated end-to-end empirical production system.
 
 ## Authority lock
 
@@ -96,9 +96,9 @@ The swarm framework is reused here as an execution layer. The flagship science s
 - `T075` LaTeX paper integration
 - `T080` deferred release-layer design
 
-## Phase 1 scope
+## Current certified scope
 
-This deployment executes the bootstrap layer only:
+The currently certified scope is the operator-supervised control-plane/runtime layer:
 
 - control plane
 - contracts
@@ -108,7 +108,7 @@ This deployment executes the bootstrap layer only:
 - backlog seeding
 - deterministic verification
 
-It does not yet execute the scientific archive pipeline.
+The repo may contain staged scientific pipeline code, but this deployment plan does not certify the archive-to-paper path as already executed end to end.
 
 ## Phase 1 execution status
 
@@ -117,3 +117,4 @@ It does not yet execute the scientific archive pipeline.
 - 2026-04-08: contracts, prompts, runbooks, and runtime scripts rewritten for flagship precedence
 - 2026-04-08: backlog seeded from `T020` through `T080`
 - 2026-04-08: verification completed with `make gate`, `make test`, and `python scripts/swarm.py plan`
+- 2026-04-09: deployment wording tightened to distinguish runtime/control-plane readiness from full archive-to-paper empirical execution
