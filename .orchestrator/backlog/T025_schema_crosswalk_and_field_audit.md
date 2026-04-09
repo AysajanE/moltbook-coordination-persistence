@@ -83,7 +83,7 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - `make test`
 
 ## Status
-- State: blocked
+- State: ready_for_review
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
@@ -101,3 +101,7 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - 2026-04-09: The prior ownership block no longer reproduces in this worktree. `raw/` and `restricted/` remain symlinks, but `git status --short --untracked-files=all` reports only the refreshed crosswalk artifact and no out-of-scope untracked paths.
 - 2026-04-09: Scientific conclusions are unchanged from the earlier audit: all required fields remain mapped; optional `submolts.community_id` remains unmapped; notable type drift remains in `comments.created_at` and `comments.parent_id`; `comments.parent_comment_id` missingness remains `965067 / 1113910` (`0.8663778940848004`). The existing handoff note remains accurate.
 - 2026-04-09: @human Runtime blocked: gates_failed, path_ownership_violation. Run manifest: reports/status/swarm_runs/T025_20260409T190205Z.json. ownership=raw[committed]=outside_allowed_paths; restricted[committed]=outside_allowed_paths
+- 2026-04-09: Operational repair reran `python analysis/hf_archive_schema_discovery.py --raw-manifest manifests/simulamet_manifest.yaml --archive-name simulamet --out-crosswalk manifests/schema_crosswalk.yaml --out-field-validation qc/field_validation_simulamet.csv --out-missingness qc/missingness_simulamet.csv`. The regenerated CSV audits remained byte-stable; `manifests/schema_crosswalk.yaml` changed only in `generated_at_utc` (`2026-04-09T19:06:31.167000+00:00`).
+- 2026-04-09: Re-ran `make gate` and `make test`; both passed. `make test` completed with `Ran 25 tests in 8.497s` / `OK` and repeated the same non-fatal PyArrow `sysctlbyname` sandbox warnings observed in prior runs.
+- 2026-04-09: This repair run was executed directly in the worktree rather than through the local swarm runtime, so no new durable run manifest was recorded under `reports/status/swarm_runs/`. Operator should capture a fresh runtime-owned manifest before review. Declared outputs confirmed present at `manifests/schema_crosswalk.yaml`, `qc/field_validation_simulamet.csv`, and `qc/missingness_simulamet.csv`; the existing handoff note remains accurate.
+- 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T025_20260409T190559Z.json
