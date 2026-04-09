@@ -84,10 +84,9 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 - `make test`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-04-08
-
+- State: active
+- Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
+- 2026-04-09: Claimed by local swarm runtime on branch T030_build_simulamet_firstweek_freeze.
