@@ -15,7 +15,13 @@ requires_tools:
 requires_env: []
 allowed_paths:
   - "analysis/hf_archive_validate.py"
-  - "qc/"
+  - "qc/linkage_audit_simulamet.csv"
+  - "qc/gap_registry_simulamet.csv"
+  - "qc/gap_disambiguation_simulamet.csv"
+  - "qc/benchmark_report_simulamet.md"
+  - "qc/archive_qc_report_simulamet.md"
+  - "qc/exclusion_log_simulamet.csv"
+  - "qc/manual_override_log_simulamet.csv"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -29,7 +35,7 @@ outputs:
   - "qc/benchmark_report_simulamet.md"
   - "qc/archive_qc_report_simulamet.md"
   - "qc/exclusion_log_simulamet.csv"
-  - "qc/manual_override_log.csv"
+  - "qc/manual_override_log_simulamet.csv"
 gates:
   - "make gate"
   - "make test"
@@ -80,9 +86,9 @@ Analysis does not begin until the canonical freeze has passed the hard QC gates 
 
 ## Validation / Commands
 
+- `python analysis/hf_archive_validate.py --freeze-root frozen/simulamet_firstweek_lateststate --archive-name simulamet --out-linkage-audit qc/linkage_audit_simulamet.csv --out-gap-registry qc/gap_registry_simulamet.csv --out-gap-disambiguation qc/gap_disambiguation_simulamet.csv --out-benchmark-report qc/benchmark_report_simulamet.md --out-qc-report qc/archive_qc_report_simulamet.md --out-exclusion-log qc/exclusion_log_simulamet.csv --out-manual-override-log qc/manual_override_log_simulamet.csv`
 - `make gate`
 - `make test`
-- Add task-specific QC commands here.
 
 ## Status
 

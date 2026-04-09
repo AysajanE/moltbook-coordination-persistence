@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import fnmatch
 import importlib.util
 import json
 from pathlib import Path
@@ -34,6 +35,56 @@ REQUIRED_TASK_HEADINGS = (
     "## Status",
     "## Notes / Decisions",
 )
+PLACEHOLDER_VALIDATION_SNIPPETS = (
+    "Add task-specific",
+)
+AMBIGUOUS_ALLOWED_PATHS = {
+    "analysis/",
+    "manifests/",
+    "qc/",
+    "frozen/",
+    "derived/",
+}
+WORKSTREAM_OWNED_PATTERNS: dict[str, tuple[str, ...]] = {
+    "W0": ("AGENTS.md", "README.md", "contracts/", "docs/swarm_deployment_plan.md"),
+    "W1": (
+        "scripts/download_moltbook_observatory_archive.py",
+        "scripts/run_moltbook_live_campaign.py",
+        "analysis/moltbook_api_collect.py",
+        "analysis/moltbook_api_curate.py",
+        "analysis/moltbook_api_validate.py",
+        "raw/",
+        "manifests/",
+        "restricted/",
+    ),
+    "W2": (
+        "analysis/hf_archive_schema_discovery.py",
+        "analysis/hf_archive_curate.py",
+        "analysis/hf_archive_validate.py",
+        "frozen/",
+        "qc/",
+        "manifests/",
+    ),
+    "W3": ("analysis/build_*.py", "derived/"),
+    "W4": (
+        "analysis/flagship_control_panel_margins.py",
+        "analysis/incidence_horizon_standardization.py",
+        "qc/analysis_execution_*.md",
+    ),
+    "W5": ("paper/main.tex", "paper/references.bib"),
+    "W9": (
+        ".orchestrator/",
+        "docs/prompts/",
+        "docs/runbook_swarm.md",
+        "docs/runbook_swarm_automation.md",
+        "scripts/swarm.py",
+        "scripts/quality_gates.py",
+        "scripts/sweep_tasks.py",
+        "reports/status/",
+        "tests/",
+        "Makefile",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -78,6 +129,16 @@ def _path_matches_prefix(value: str, prefix: str) -> bool:
     if norm_value == norm_prefix.rstrip("/"):
         return True
     return norm_value.startswith(norm_prefix)
+
+
+def _path_matches_rule(value: str, rule: str) -> bool:
+    norm_value = _normalize_path(value)
+    norm_rule = _normalize_path(rule)
+    if any(token in norm_rule for token in ("*", "?", "[")):
+        return fnmatch.fnmatch(norm_value, norm_rule)
+    if norm_rule.endswith("/"):
+        return _path_matches_prefix(norm_value, norm_rule)
+    return norm_value == norm_rule
 
 
 def _parse_simple_yaml_scalar(text: str, key: str) -> str | None:
@@ -519,7 +580,14 @@ def gate_task_hygiene() -> GateResult:
         ):
             failures.append(f"{path}:raw_outputs_missing_manifest_output")
 
+        for snippet in PLACEHOLDER_VALIDATION_SNIPPETS:
+            if snippet in text:
+                failures.append(f"{path}:placeholder_validation_text:{snippet}")
+
         allowed_paths = swarm._coerce_str_list(frontmatter.get("allowed_paths"))
+        for allowed_path in allowed_paths:
+            if _normalize_path(allowed_path) in AMBIGUOUS_ALLOWED_PATHS:
+                failures.append(f"{path}:broad_allowed_path_requires_narrower_scope:{allowed_path}")
         if workstream != "W0":
             for protected in (
                 "README.md",
@@ -535,6 +603,19 @@ def gate_task_hygiene() -> GateResult:
             if heading not in text:
                 failures.append(f"{path}:missing_heading:{heading}")
 
+        for output in outputs:
+            safe, reason = swarm._output_spec_is_safe(output)
+            if not safe:
+                failures.append(f"{path}:invalid_output_spec:{output}:{reason}")
+                continue
+            normalized = _normalize_path(output)
+            if normalized.endswith("/"):
+                failures.append(f"{path}:directory_output_requires_pattern:{output}")
+                continue
+            resolved = _repo_root() / normalized
+            if not swarm._has_wildcards(normalized) and resolved.exists() and resolved.is_dir():
+                failures.append(f"{path}:existing_directory_output_requires_concrete_artifact:{output}")
+
         state = swarm._parse_status_value(text, "State")
         if state is None:
             failures.append(f"{path}:missing_state")
@@ -544,6 +625,29 @@ def gate_task_hygiene() -> GateResult:
         last_updated = swarm._parse_status_value(text, "Last updated")
         if last_updated is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", last_updated):
             failures.append(f"{path}:invalid_last_updated:{last_updated}")
+
+    return GateResult(ok=len(failures) == 0, details={"failures": failures})
+
+
+def gate_workstream_path_ownership() -> GateResult:
+    try:
+        contract = _load_contract()
+    except Exception as exc:
+        return GateResult(ok=False, details={"failures": [str(exc)]})
+
+    tasks, parse_failures = _collect_tasks(contract)
+    failures = list(parse_failures)
+
+    for task in tasks.values():
+        patterns = WORKSTREAM_OWNED_PATTERNS.get(task.workstream)
+        if patterns is None:
+            failures.append(f"{task.path}:unknown_workstream:{task.workstream}")
+            continue
+
+        for raw_path in [*task.allowed_paths, *task.outputs]:
+            if any(_path_matches_rule(raw_path, pattern) for pattern in patterns):
+                continue
+            failures.append(f"{task.path}:path_outside_workstream_surface:{task.workstream}:{raw_path}")
 
     return GateResult(ok=len(failures) == 0, details={"failures": failures})
 
@@ -702,18 +806,27 @@ def gate_review_bundle_integrity() -> GateResult:
             failures.append(f"{task.path}:required_manifest_failure:{reason}")
 
         run_manifests = _matching_task_jsons(contract.run_manifest_dir, task.task_id)
-        valid_run_manifests = [path for path in run_manifests if not _validate_swarm_run_manifest(path, contract)]
+        valid_run_manifests = [
+            path
+            for path in run_manifests
+            if not _validate_swarm_run_manifest(path, contract) and swarm._is_valid_run_manifest(path, task.task_id)
+        ]
         if not valid_run_manifests:
             failures.append(
-                f"{task.path}:" + ("invalid_run_manifest" if run_manifests else "missing_run_manifest")
+                f"{task.path}:" + ("missing_reviewable_run_manifest" if run_manifests else "missing_run_manifest")
             )
 
         if task.state == "done":
             review_logs = _matching_task_jsons(contract.judge_review_dir, task.task_id)
-            valid_review_logs = [path for path in review_logs if not _validate_judge_review_log(path, contract)]
+            valid_review_logs = [
+                path
+                for path in review_logs
+                if not _validate_judge_review_log(path, contract)
+                and swarm._is_valid_review_log(path, task.task_id, contract.scientific_review_role)
+            ]
             if not valid_review_logs:
                 failures.append(
-                    f"{task.path}:" + ("invalid_review_log" if review_logs else "missing_review_log")
+                    f"{task.path}:" + ("missing_approval_review_log" if review_logs else "missing_review_log")
                 )
 
     return GateResult(ok=len(failures) == 0, details={"failures": failures})
@@ -729,6 +842,7 @@ def _collect_gate_results() -> dict[str, GateResult]:
         "task_hygiene": gate_task_hygiene(),
         "task_dependencies": gate_task_dependencies(),
         "integration_ready_policy": gate_integration_ready_policy(),
+        "workstream_path_ownership": gate_workstream_path_ownership(),
         "operator_surface_ownership": gate_operator_surface_ownership(),
         "swarm_run_manifest_validity": gate_swarm_run_manifest_validity(),
         "judge_review_log_validity": gate_judge_review_log_validity(),

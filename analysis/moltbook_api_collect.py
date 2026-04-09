@@ -253,9 +253,9 @@ def _stub_submolts_payload() -> list[dict[str, Any]]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Collect auditable Moltbook REST API responses into data_raw/ with a "
-            "safe JSONL request log (no headers). Supports live/unauth collection "
-            "when possible and a deterministic stub fallback."
+            "Collect auditable Moltbook REST API responses into raw/ with a safe "
+            "JSONL request log (no headers). Deterministic stub output is allowed "
+            "only for explicitly flagged smoke tests."
         )
     )
     parser.add_argument("--attempt-id", required=True, help="Attempt/run identifier.")
@@ -266,7 +266,7 @@ def parse_args() -> argparse.Namespace:
         default="auto",
         help=(
             "Collection mode: auto chooses live if API key exists, else unauth; "
-            "falls back to stub on failure."
+            "stub is allowed only with --smoke-test."
         ),
     )
     parser.add_argument(
@@ -328,7 +328,17 @@ def parse_args() -> argparse.Namespace:
         "--out-raw-root",
         type=Path,
         required=True,
-        help="Root output directory (e.g., data_raw/moltbook_api).",
+        help="Root output directory (e.g., raw/moltbook_api).",
+    )
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Allow synthetic stub collection for smoke-testing only.",
+    )
+    parser.add_argument(
+        "--allow-stub-fallback",
+        action="store_true",
+        help="Allow auto mode to fall back to stub mode on connectivity/auth failure during smoke tests.",
     )
     parser.add_argument("--timeout-seconds", type=int, default=30, help="HTTP timeout.")
     parser.add_argument("--max-retries", type=int, default=4, help="Retries for 429/5xx/URLError.")
@@ -372,6 +382,10 @@ def main() -> None:
 
     if initial_mode == "live" and not api_key and args.mode != "auto":
         raise SystemExit("Mode live requested, but MOLTBOOK_API_KEY is not set.")
+    if initial_mode == "stub" and not bool(args.smoke_test):
+        raise SystemExit("Mode stub is restricted to --smoke-test runs.")
+    if bool(args.allow_stub_fallback) and not bool(args.smoke_test):
+        raise SystemExit("--allow-stub-fallback requires --smoke-test.")
 
     user_agent = "conversation-persistence-research/0.1 (+academic; safe-readonly)"
     base_headers = {"Accept": "application/json", "User-Agent": user_agent}
@@ -419,6 +433,8 @@ def main() -> None:
                 "bytes": result.bytes,
                 "error": result.error,
                 "raw_path": str(raw_path) if raw_path is not None else None,
+                "smoke_test": bool(args.smoke_test),
+                "allow_stub_fallback": bool(args.allow_stub_fallback),
             },
         )
 
@@ -479,9 +495,8 @@ def main() -> None:
             backoff_base_seconds=float(args.backoff_base_seconds),
         )
 
-        # Decide fallback for auto mode on connectivity/auth issues.
-        if args.mode == "auto":
-            if result.http_status is None or (result.http_status in {401, 403}):
+        if args.mode == "auto" and bool(args.smoke_test) and bool(args.allow_stub_fallback):
+            if result.http_status is None or result.http_status in {401, 403} or result.http_status >= 500:
                 fallback_to_stub = True
 
         payload: Any | None = None
@@ -613,6 +628,17 @@ def main() -> None:
             stub_payload=_stub_submolts_payload(),
         )
 
+    request_entries = _load_jsonl(request_log_path)
+    any_stub = any(str(entry.get("mode")) == "stub" for entry in request_entries)
+    any_synthetic = any(bool(entry.get("synthetic")) for entry in request_entries)
+    feed_success = any(
+        entry.get("endpoint") == "/posts" and entry.get("http_status") == 200 for entry in request_entries
+    )
+    if not bool(args.smoke_test) and (any_stub or any_synthetic):
+        raise SystemExit("synthetic_output_forbidden_without_smoke_test")
+    if not feed_success:
+        raise SystemExit("collector_failed_no_successful_feed_snapshot")
+
     print(
         json.dumps(
             {
@@ -622,6 +648,8 @@ def main() -> None:
                 "mode_requested": args.mode,
                 "mode_initial": initial_mode,
                 "mode_effective": ("stub" if fallback_to_stub else effective_mode),
+                "smoke_test": bool(args.smoke_test),
+                "allow_stub_fallback": bool(args.allow_stub_fallback),
                 "comment_poll_every_rounds": comment_poll_every_rounds,
                 "comment_poll_top_k": comment_poll_top_k,
                 "request_log_path": str(request_log_path),

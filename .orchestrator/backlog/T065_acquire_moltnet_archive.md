@@ -14,13 +14,10 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "scripts/run_moltbook_live_campaign.py"
-  - "analysis/moltbook_api_collect.py"
-  - "analysis/moltbook_api_curate.py"
-  - "analysis/moltbook_api_validate.py"
-  - "raw/"
-  - "manifests/"
-  - "restricted/"
+  - "scripts/download_moltbook_observatory_archive.py"
+  - "raw/moltnet/"
+  - "manifests/moltnet_manifest.yaml"
+  - "restricted/moltnet_raw_to_hash_mapping.parquet"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -28,8 +25,9 @@ disallowed_paths:
   - "paper/"
   - "derived/"
 outputs:
-  - "raw/moltnet/v2026-02-28/..."
+  - "raw/moltnet/YYYY-MM-DD/..."
   - "manifests/moltnet_manifest.yaml"
+  - "restricted/moltnet_raw_to_hash_mapping.parquet"
 gates:
   - "make gate"
   - "make test"
@@ -81,9 +79,9 @@ The replication archive is acquired only after the SimulaMet core path is stable
 
 ## Validation / Commands
 
+- `python scripts/download_moltbook_observatory_archive.py --dataset iNLP-Lab/MoltNet --archive-name moltnet --revision main --out-root raw/moltnet --snapshot-id $(date -u +%F) --manifest-out manifests/moltnet_manifest.yaml --restricted-hash-out restricted/moltnet_raw_to_hash_mapping.parquet`
 - `make gate`
 - `make test`
-- Add task-specific MoltNet acquisition commands here.
 
 ## Status
 

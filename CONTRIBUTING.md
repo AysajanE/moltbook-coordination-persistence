@@ -8,11 +8,11 @@ This repository is a public research workspace with strict reproducibility and p
 
 Read these sources in order before proposing substantive changes:
 
-1. [README.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/README.md)
-2. [contracts/project.yaml](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/project.yaml)
-3. [contracts/framework.json](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/framework.json)
-4. [docs/runbook_swarm.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/docs/runbook_swarm.md)
-5. [AGENTS.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/AGENTS.md)
+1. [`README.md`](README.md)
+2. [`contracts/project.yaml`](contracts/project.yaml)
+3. [`contracts/framework.json`](contracts/framework.json)
+4. [`docs/runbook_swarm.md`](docs/runbook_swarm.md)
+5. [`AGENTS.md`](AGENTS.md)
 
 Detailed internal research materials are intentionally not published in the public repo. If the available public surfaces appear to disagree, stop and open an issue or draft pull request rather than improvising a new project definition.
 

@@ -75,9 +75,9 @@ The carried-over estimand scripts are legacy helpers. They must be rewritten aga
 
 ## Validation / Commands
 
+- `python -m py_compile analysis/flagship_control_panel_margins.py analysis/incidence_horizon_standardization.py`
 - `make gate`
 - `make test`
-- Add task-specific script rewrite commands here.
 
 ## Status
 

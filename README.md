@@ -90,8 +90,10 @@ Helpful entrypoints:
 - `make swarm-tick` to launch ready work through the local swarm helper
 - `make sweep` to reconcile task-file placement with authoritative task state
 
-Public contributions should also follow [CONTRIBUTING.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/CONTRIBUTING.md).
+Public contributions should also follow [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Current Project State
 
-This repository already contains the public contracts, runbooks, and reproducibility scaffolding needed to build the study from fresh archive evidence. The next substantive work in the environment is empirical: archive acquisition, canonical freeze construction, validation, derived-table building, analysis, and paper integration.
+This repository currently exposes the public control plane for the study: contracts, runbooks, prompts, gates, and task scaffolding for a staged empirical build from fresh archive evidence. It is not yet a completed end-to-end research execution record.
+
+The next substantive work in the environment is empirical: archive acquisition, canonical freeze construction, validation, derived-table building, analysis, and paper integration.

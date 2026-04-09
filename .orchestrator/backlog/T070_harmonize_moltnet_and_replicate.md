@@ -15,10 +15,22 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "frozen/"
-  - "qc/"
-  - "manifests/"
+  - "analysis/hf_archive_schema_discovery.py"
+  - "analysis/hf_archive_curate.py"
+  - "analysis/hf_archive_validate.py"
+  - "frozen/moltnet_firstweek_aligned/"
+  - "frozen/moltnet_fullrelease/"
+  - "manifests/moltnet_schema_crosswalk.yaml"
+  - "manifests/moltnet_firstweek_freeze_manifest.json"
+  - "manifests/moltnet_fullrelease_freeze_manifest.json"
+  - "qc/moltnet_dedup_conflicts.csv"
+  - "qc/linkage_audit_moltnet.csv"
+  - "qc/gap_registry_moltnet.csv"
+  - "qc/gap_disambiguation_moltnet.csv"
+  - "qc/benchmark_report_moltnet.md"
+  - "qc/archive_qc_report_moltnet.md"
+  - "qc/exclusion_log_moltnet.csv"
+  - "qc/manual_override_log_moltnet.csv"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -27,8 +39,10 @@ disallowed_paths:
 outputs:
   - "frozen/moltnet_firstweek_aligned/..."
   - "frozen/moltnet_fullrelease/..."
+  - "manifests/moltnet_schema_crosswalk.yaml"
   - "qc/archive_qc_report_moltnet.md"
   - "qc/gap_registry_moltnet.csv"
+  - "qc/manual_override_log_moltnet.csv"
 gates:
   - "make gate"
   - "make test"
@@ -79,9 +93,12 @@ Replication requires aligned MoltNet freeze construction and QC before any MoltN
 
 ## Validation / Commands
 
+- `python analysis/hf_archive_schema_discovery.py --raw-manifest manifests/moltnet_manifest.yaml --archive-name moltnet --out-crosswalk manifests/moltnet_schema_crosswalk.yaml --out-field-validation qc/field_validation_moltnet.csv --out-missingness qc/missingness_moltnet.csv`
+- `python analysis/hf_archive_curate.py --raw-manifest manifests/moltnet_manifest.yaml --schema-crosswalk manifests/moltnet_schema_crosswalk.yaml --archive-name moltnet --out-root frozen/moltnet_firstweek_aligned --window-start 2026-01-28T00:00:00Z --window-end 2026-02-05T00:00:00Z --dedup-conflicts-out qc/moltnet_dedup_conflicts.csv --freeze-manifest-out manifests/moltnet_firstweek_freeze_manifest.json`
+- `python analysis/hf_archive_curate.py --raw-manifest manifests/moltnet_manifest.yaml --schema-crosswalk manifests/moltnet_schema_crosswalk.yaml --archive-name moltnet --out-root frozen/moltnet_fullrelease --window-start 2026-01-01T00:00:00Z --window-end 2026-12-31T23:59:59Z --dedup-conflicts-out qc/moltnet_dedup_conflicts.csv --freeze-manifest-out manifests/moltnet_fullrelease_freeze_manifest.json`
+- `python analysis/hf_archive_validate.py --freeze-root frozen/moltnet_firstweek_aligned --archive-name moltnet --out-linkage-audit qc/linkage_audit_moltnet.csv --out-gap-registry qc/gap_registry_moltnet.csv --out-gap-disambiguation qc/gap_disambiguation_moltnet.csv --out-benchmark-report qc/benchmark_report_moltnet.md --out-qc-report qc/archive_qc_report_moltnet.md --out-exclusion-log qc/exclusion_log_moltnet.csv --out-manual-override-log qc/manual_override_log_moltnet.csv`
 - `make gate`
 - `make test`
-- Add task-specific MoltNet freeze and QC commands here.
 
 ## Status
 

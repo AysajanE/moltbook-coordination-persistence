@@ -41,6 +41,7 @@
 - `## Inputs`
 - `## Outputs`
 - `## Success Criteria`
+- `## Review Bundle Requirements`
 - `## Validation / Commands`
 - `## Status`
 - `## Notes / Decisions`
@@ -62,7 +63,7 @@
 
 - `dependencies` are satisfied only by upstream tasks in `done`.
 - The only exception is `integration_ready`: a downstream task may consume an upstream task in `integration_ready` only when the downstream task explicitly lists that task in `integration_ready_dependencies`.
-- `integration_ready` is intended for W0, W3, W8, W9, and explicit bridge/interface tasks. It is not the default path for unvalidated empirical data products.
+- `integration_ready` is intended only for W0 or W9 interface tasks, plus explicit interface task kinds that the framework allowlists. It is not the default path for unvalidated empirical data products.
 
 ## Review bundle
 

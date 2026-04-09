@@ -15,8 +15,8 @@ requires_env: []
 allowed_paths:
   - "scripts/download_moltbook_observatory_archive.py"
   - "raw/"
-  - "manifests/"
-  - "restricted/"
+  - "manifests/simulamet_manifest.yaml"
+  - "restricted/raw_to_hash_mapping.parquet"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -25,7 +25,7 @@ disallowed_paths:
   - "qc/"
   - "derived/"
 outputs:
-  - "raw/simulamet/YYYYMMDD/..."
+  - "raw/simulamet/YYYY-MM-DD/..."
   - "manifests/simulamet_manifest.yaml"
   - "restricted/raw_to_hash_mapping.parquet"
 gates:
@@ -80,9 +80,9 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 
 ## Validation / Commands
 
+- `python scripts/download_moltbook_observatory_archive.py --dataset SimulaMet/moltbook-observatory-archive --archive-name simulamet --out-root raw/simulamet --snapshot-id $(date -u +%F) --manifest-out manifests/simulamet_manifest.yaml --restricted-hash-out restricted/raw_to_hash_mapping.parquet`
 - `make gate`
 - `make test`
-- Add task-specific acquisition commands here.
 
 ## Status
 

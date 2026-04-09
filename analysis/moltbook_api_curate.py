@@ -226,21 +226,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Curate raw Moltbook API JSON responses into partitioned Parquet tables under "
-            "data_curated/moltbook/ with UTC-parsed timestamps and a curation manifest."
+            "frozen/moltbook_api/ with UTC-parsed timestamps and a curation manifest."
         )
     )
     parser.add_argument(
         "--raw-root",
         type=Path,
         required=True,
-        help="Raw date root (e.g., data_raw/moltbook_api/2026-02-05).",
+        help="Raw date root (e.g., raw/moltbook_api/2026-02-05).",
     )
     parser.add_argument("--attempt-id", required=True, help="Attempt/run identifier.")
     parser.add_argument(
         "--out-root",
         type=Path,
         required=True,
-        help="Curated output root (e.g., data_curated/moltbook).",
+        help="Curated output root (e.g., frozen/moltbook_api).",
     )
     parser.add_argument(
         "--curation-manifest",
