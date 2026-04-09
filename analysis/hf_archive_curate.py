@@ -41,29 +41,24 @@ def _load_json_document(path: Path) -> dict[str, Any]:
 
 def _resolve_raw_files(raw_manifest: dict[str, Any], subset: str) -> list[Path]:
     subset_payload = raw_manifest.get("subsets", {}).get(subset, {})
+    splits = subset_payload.get("splits", {})
+    if not isinstance(splits, dict):
+        return []
     paths: list[Path] = []
-    for container_name in ("splits", "files"):
-        container = subset_payload.get(container_name, {})
-        if not isinstance(container, dict):
+    for split_payload in splits.values():
+        if not isinstance(split_payload, dict):
             continue
-        for file_payload in container.values():
-            if not isinstance(file_payload, dict):
-                continue
-            raw_path = file_payload.get("path")
-            if isinstance(raw_path, str) and raw_path.strip():
-                paths.append(Path(raw_path))
-    return sorted(set(paths))
+        raw_path = split_payload.get("path")
+        if isinstance(raw_path, str) and raw_path.strip():
+            paths.append(Path(raw_path))
+    return paths
 
 
 def _load_frame(paths: list[Path]) -> pd.DataFrame:
     if not paths:
         return pd.DataFrame()
-    # Raw archive parquet files can drift across snapshots (for example:
-    # string vs large_string or string vs int64 for timestamp-like fields).
-    # Loading to pandas per file and concatenating there keeps all rows while
-    # deferring canonical type coercion to the subset mapper.
-    frames = [pq.read_table(path).to_pandas() for path in paths]
-    return pd.concat(frames, ignore_index=True, sort=False)
+    tables = [pq.read_table(path) for path in paths]
+    return pa.concat_tables(tables, promote_options="default").to_pandas()
 
 
 def _coerce_timestamp(series: pd.Series) -> pd.Series:
