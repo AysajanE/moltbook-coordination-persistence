@@ -83,10 +83,9 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - `make test`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-04-08
-
+- State: active
+- Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
+- 2026-04-09: Claimed by local swarm runtime on branch T025_schema_crosswalk_and_field_audit.
