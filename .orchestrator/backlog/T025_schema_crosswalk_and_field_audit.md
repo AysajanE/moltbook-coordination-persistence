@@ -83,9 +83,16 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - `make test`
 
 ## Status
-- State: active
+- State: blocked
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
 - 2026-04-09: Claimed by local swarm runtime on branch T025_schema_crosswalk_and_field_audit.
+- 2026-04-09: Updated `analysis/hf_archive_schema_discovery.py` to resolve manifest v3 subset paths from `subsets.<subset>.files` as well as legacy `splits`, and to aggregate file-by-file null/type audits so schema drift does not fail Arrow-wide dataset unification.
+- 2026-04-09: Generated `manifests/schema_crosswalk.yaml`, `qc/field_validation_simulamet.csv`, and `qc/missingness_simulamet.csv` with `python analysis/hf_archive_schema_discovery.py --raw-manifest manifests/simulamet_manifest.yaml --archive-name simulamet --out-crosswalk manifests/schema_crosswalk.yaml --out-field-validation qc/field_validation_simulamet.csv --out-missingness qc/missingness_simulamet.csv`.
+- 2026-04-09: Required fields were found in all audited subsets. The only unmapped field was optional `submolts.community_id`. The crosswalk records type drift for several raw fields, including `comments.created_at` (`int64`, `string`, `large_string`) and `comments.parent_id` (`null`, `string`, `large_string`).
+- 2026-04-09: Missingness audit highlights `comments.parent_comment_id` as null in 965067 / 1113910 rows (missing rate `0.8663778940848004`), consistent with many top-level comments in the raw export. Optional fields with large null shares include `agents.created_at_utc` and `agents.owner_x_handle`.
+- 2026-04-09: Validation commands passed: `make gate` and `make test`.
+- 2026-04-09: Added handoff note `.orchestrator/handoff/H_T025_manifest_v3_crosswalk.md` for downstream freeze construction. As of this run, no `reports/status/swarm_runs/T025*.json` artifact exists in this worktree, so the task remains `active` pending Operator/runtime manifest capture before `ready_for_review`.
+- 2026-04-09: @human Runtime blocked: path_ownership_violation. Run manifest: reports/status/swarm_runs/T025_20260409T185549Z.json. ownership=raw[untracked]=outside_allowed_paths; restricted[untracked]=outside_allowed_paths

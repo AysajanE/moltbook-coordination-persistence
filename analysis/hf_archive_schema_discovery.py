@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
 FIELD_SPECS: dict[str, list[dict[str, object]]] = {
@@ -85,24 +84,25 @@ def _write_yaml_document(path: Path, payload: dict[str, Any]) -> None:
 def _resolve_subset_paths(raw_manifest: dict[str, Any], subset: str) -> list[Path]:
     subset_payload = raw_manifest.get("subsets", {}).get(subset, {})
     splits = subset_payload.get("splits", {})
-    if not isinstance(splits, dict):
-        return []
     out: list[Path] = []
-    for split_payload in splits.values():
-        if not isinstance(split_payload, dict):
-            continue
-        raw_path = split_payload.get("path")
-        if isinstance(raw_path, str) and raw_path.strip():
-            out.append(Path(raw_path))
-    return out
+    if isinstance(splits, dict):
+        for split_payload in splits.values():
+            if not isinstance(split_payload, dict):
+                continue
+            raw_path = split_payload.get("path")
+            if isinstance(raw_path, str) and raw_path.strip():
+                out.append(Path(raw_path))
 
+    files = subset_payload.get("files", {})
+    if isinstance(files, dict):
+        for file_payload in files.values():
+            if not isinstance(file_payload, dict):
+                continue
+            raw_path = file_payload.get("path")
+            if isinstance(raw_path, str) and raw_path.strip():
+                out.append(Path(raw_path))
 
-def _read_subset_table(paths: list[Path]):
-    if not paths:
-        return None
-    if len(paths) == 1:
-        return pq.read_table(paths[0])
-    return ds.dataset([str(path) for path in paths], format="parquet").to_table()
+    return sorted(set(out))
 
 
 def _normalize_columns(columns: list[str]) -> dict[str, str]:
@@ -118,6 +118,36 @@ def _pick_column(normalized: dict[str, str], aliases: list[str]) -> tuple[str | 
     if not matches:
         return None, []
     return matches[0], matches
+
+
+def _load_file_infos(paths: list[Path]) -> list[dict[str, Any]]:
+    infos: list[dict[str, Any]] = []
+    for path in paths:
+        parquet_file = pq.ParquetFile(path)
+        schema = parquet_file.schema_arrow
+        columns = list(schema.names)
+        infos.append(
+            {
+                "path": path,
+                "rows": int(parquet_file.metadata.num_rows),
+                "columns": columns,
+                "normalized": _normalize_columns(columns),
+                "types": {field.name: str(field.type) for field in schema},
+            }
+        )
+    return infos
+
+
+def _union_columns(file_infos: list[dict[str, Any]]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for info in file_infos:
+        for column in info["columns"]:
+            if column in seen:
+                continue
+            seen.add(column)
+            ordered.append(column)
+    return ordered
 
 
 def parse_args() -> argparse.Namespace:
@@ -203,40 +233,85 @@ def main() -> None:
                 )
             continue
 
-        table = _read_subset_table(raw_paths)
-        if table is None:
+        file_infos = _load_file_infos(raw_paths)
+        if not file_infos:
             raise SystemExit(f"Failed to read raw files for subset={subset}")
-        columns = list(table.column_names)
+        columns = _union_columns(file_infos)
         normalized = _normalize_columns(columns)
+        total_rows = sum(int(info["rows"]) for info in file_infos)
+        file_count = len(file_infos)
+
+        spec_state: dict[str, dict[str, Any]] = {}
+        for spec in spec_rows:
+            canonical_name = str(spec["canonical_name"])
+            aliases = [str(item) for item in spec["aliases"]]
+            required = bool(spec["required"])
+            mapped_to, matches = _pick_column(normalized, aliases)
+            spec_state[canonical_name] = {
+                "aliases": aliases,
+                "required": required,
+                "mapped_to": mapped_to,
+                "matches": matches,
+                "nonnull_rows": 0,
+                "files_with_match": 0,
+                "observed_types": {},
+            }
+
+        for info in file_infos:
+            file_columns: set[str] = set()
+            file_matches: dict[str, str] = {}
+            for canonical_name, state in spec_state.items():
+                file_match, _ = _pick_column(info["normalized"], state["aliases"])
+                if file_match is None:
+                    continue
+                file_columns.add(file_match)
+                file_matches[canonical_name] = file_match
+                state["files_with_match"] += 1
+                state["observed_types"].setdefault(file_match, set()).add(info["types"][file_match])
+
+            file_table = pq.read_table(info["path"], columns=sorted(file_columns)) if file_columns else None
+            for canonical_name, file_match in file_matches.items():
+                state = spec_state[canonical_name]
+                assert file_table is not None
+                state["nonnull_rows"] += int(info["rows"] - file_table[file_match].null_count)
 
         table_payload: dict[str, Any] = {
             "status": "ok",
             "raw_files": [str(path) for path in raw_paths],
-            "rows": int(table.num_rows),
+            "file_count": file_count,
+            "rows": total_rows,
             "columns": columns,
             "fields": {},
         }
 
         for spec in spec_rows:
             canonical_name = str(spec["canonical_name"])
-            aliases = [str(item) for item in spec["aliases"]]
-            required = bool(spec["required"])
-            mapped_to, matches = _pick_column(normalized, aliases)
+            state = spec_state[canonical_name]
+            aliases = state["aliases"]
+            required = state["required"]
+            mapped_to = state["mapped_to"]
+            matches = state["matches"]
             status = "found" if mapped_to is not None else ("missing_required" if required else "missing_optional")
             nonnull_rows: int | None = None
             missing_rows: int | None = None
             missing_rate: float | None = None
+            files_with_match = int(state["files_with_match"])
+            observed_types = {
+                raw_name: sorted(type_names) for raw_name, type_names in state["observed_types"].items()
+            }
             if mapped_to is not None:
-                column = table[mapped_to]
-                nonnull_rows = int(table.num_rows - column.null_count)
-                missing_rows = int(column.null_count)
-                missing_rate = (missing_rows / int(table.num_rows)) if int(table.num_rows) else None
+                nonnull_rows = int(state["nonnull_rows"])
+                missing_rows = int(total_rows - nonnull_rows)
+                missing_rate = (missing_rows / total_rows) if total_rows else None
 
             table_payload["fields"][canonical_name] = {
                 "required": required,
                 "aliases": aliases,
                 "mapped_to": mapped_to,
                 "matches": matches,
+                "files_with_match": files_with_match,
+                "files_without_match": file_count - files_with_match,
+                "observed_types": observed_types,
                 "status": status,
                 "nonnull_rows": nonnull_rows,
                 "missing_rows": missing_rows,
@@ -251,7 +326,9 @@ def main() -> None:
                     "status": status,
                     "aliases": "|".join(aliases),
                     "matches": "|".join(matches),
-                    "total_rows": int(table.num_rows),
+                    "files_with_match": files_with_match,
+                    "file_count": file_count,
+                    "total_rows": total_rows,
                 }
             )
             missingness_rows.append(
@@ -260,7 +337,9 @@ def main() -> None:
                     "canonical_field": canonical_name,
                     "mapped_to": mapped_to,
                     "required": required,
-                    "total_rows": int(table.num_rows),
+                    "files_with_match": files_with_match,
+                    "file_count": file_count,
+                    "total_rows": total_rows,
                     "nonnull_rows": nonnull_rows,
                     "missing_rows": missing_rows,
                     "missing_rate": missing_rate,
