@@ -1,0 +1,19 @@
+{
+  "archive_name": "simulamet",
+  "dedup_conflicts_path": "qc/simulamet_dedup_conflicts.csv",
+  "freeze_root": "frozen/simulamet_firstweek_lateststate",
+  "generated_at_utc": "2026-04-09T19:40:45.956811+00:00",
+  "raw_manifest_path": "manifests/simulamet_manifest.yaml",
+  "row_counts": {
+    "agents": 9794,
+    "comments": 3084,
+    "posts": 23751,
+    "snapshots": 119,
+    "submolts": 638,
+    "word_frequency": 15944
+  },
+  "schema_crosswalk_path": "manifests/schema_crosswalk.yaml",
+  "schema_version": "hf_archive_freeze_manifest.v2",
+  "window_end": "2026-02-05T00:00:00+00:00",
+  "window_start": "2026-01-28T00:00:00+00:00"
+}
