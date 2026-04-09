@@ -83,7 +83,7 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - `make test`
 
 ## Status
-- State: ready_for_review
+- State: done
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
@@ -105,3 +105,4 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 - 2026-04-09: Re-ran `make gate` and `make test`; both passed. `make test` completed with `Ran 25 tests in 8.497s` / `OK` and repeated the same non-fatal PyArrow `sysctlbyname` sandbox warnings observed in prior runs.
 - 2026-04-09: This repair run was executed directly in the worktree rather than through the local swarm runtime, so no new durable run manifest was recorded under `reports/status/swarm_runs/`. Operator should capture a fresh runtime-owned manifest before review. Declared outputs confirmed present at `manifests/schema_crosswalk.yaml`, `qc/field_validation_simulamet.csv`, and `qc/missingness_simulamet.csv`; the existing handoff note remains accurate.
 - 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T025_20260409T190559Z.json
+- 2026-04-09: Judge approved; review log: reports/status/reviews/T025_20260409T190849Z.json

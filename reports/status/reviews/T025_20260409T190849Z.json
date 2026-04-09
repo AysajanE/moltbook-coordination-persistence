@@ -1,0 +1,27 @@
+{
+  "checks": {
+    "failures": [],
+    "gates_ok": true,
+    "outputs_ok": true,
+    "required_manifests_ok": true,
+    "review_bundle_ok": true
+  },
+  "decision": {
+    "note": "Judge approved deterministic review.",
+    "outcome": "approve"
+  },
+  "generated_at_utc": "2026-04-09T19:08:49Z",
+  "review_id": "T025_20260409T190849Z",
+  "reviewer": {
+    "role": "Judge"
+  },
+  "schema_version": "research_swarm.judge_review_log.v1",
+  "task": {
+    "role": "Worker",
+    "run_manifest_path": "reports/status/swarm_runs/T025_20260409T190559Z.json",
+    "state_after": "done",
+    "state_before": "ready_for_review",
+    "task_id": "T025",
+    "task_path": ".orchestrator/backlog/T025_schema_crosswalk_and_field_audit.md"
+  }
+}
