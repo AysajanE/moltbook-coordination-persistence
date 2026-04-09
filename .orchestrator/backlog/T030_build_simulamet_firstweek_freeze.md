@@ -84,7 +84,7 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 - `make test`
 
 ## Status
-- State: ready_for_review
+- State: done
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
@@ -97,3 +97,4 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 - 2026-04-09: Ran gates successfully with `make gate` and `make test`. `make gate` passed all framework/task ownership checks; `make test` passed `25` unit tests in `8.305s`.
 - 2026-04-09: This execution was run directly in the worktree rather than through the local swarm runtime, so no new durable run manifest was recorded under `reports/status/swarm_runs/`. Operator should capture a runtime-owned manifest before moving this task to `ready_for_review`.
 - 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T030_20260409T193758Z.json
+- 2026-04-09: Judge approved; review log: reports/status/reviews/T030_20260409T194311Z.json
