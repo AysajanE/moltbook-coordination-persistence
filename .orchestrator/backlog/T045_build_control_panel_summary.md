@@ -14,8 +14,8 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "derived/"
+  - "analysis/build_control_panel_summary.py"
+  - "derived/control_panel_summary_simulamet.parquet"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -75,9 +75,9 @@ The flagship estimands are reported through the aggregated `control_panel_summar
 
 ## Validation / Commands
 
+- `python analysis/build_control_panel_summary.py --parent-units derived/parent_units_simulamet.parquet --out derived/control_panel_summary_simulamet.parquet`
 - `make gate`
 - `make test`
-- Add task-specific summary commands here.
 
 ## Status
 

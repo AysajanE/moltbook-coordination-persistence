@@ -18,8 +18,7 @@ allowed_paths:
   - "docs/runbook_swarm_automation.md"
   - "scripts/quality_gates.py"
   - "scripts/swarm.py"
-  - "reports/status/"
-  - "contracts/"
+  - "reports/status/release_layer_design.md"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -27,7 +26,7 @@ disallowed_paths:
   - "paper/sections/methods.tex"
   - "paper/sections/supplementary_material.tex"
 outputs:
-  - "reports/status/"
+  - "reports/status/release_layer_design.md"
 gates:
   - "make gate"
   - "make test"
@@ -78,9 +77,9 @@ Release assembly is explicitly deferred until the scientific path is stable. Whe
 
 ## Validation / Commands
 
+- `python scripts/quality_gates.py --json > reports/status/release_layer_design.md`
 - `make gate`
 - `make test`
-- Add task-specific release-design commands here.
 
 ## Status
 

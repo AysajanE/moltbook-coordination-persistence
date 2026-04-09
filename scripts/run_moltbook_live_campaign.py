@@ -392,7 +392,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run a Moltbook live collection campaign in daily chunks with automatic curation, "
-            "validation, completion manifests, and optional lossless raw compression."
+            "validation, completion manifests, and optional lossless raw compression. "
+            "Synthetic stub output is restricted to explicit smoke tests."
         )
     )
     parser.add_argument(
@@ -415,7 +416,7 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         choices=["auto", "live", "unauth", "stub"],
         default="live",
-        help="Collector mode passed through to analysis/03_moltbook_api_collect.py.",
+        help="Collector mode passed through to analysis/moltbook_api_collect.py.",
     )
     parser.add_argument(
         "--base-url",
@@ -464,19 +465,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-root",
         type=Path,
-        default=Path("data_raw/moltbook_api"),
+        default=Path("raw/moltbook_api"),
         help="Raw output root.",
     )
     parser.add_argument(
         "--curated-root",
         type=Path,
-        default=Path("data_curated/moltbook"),
+        default=Path("frozen/moltbook_api"),
         help="Curated output root.",
     )
     parser.add_argument(
         "--ops-root",
         type=Path,
-        default=Path("outputs/ops"),
+        default=Path("reports/status"),
         help="Operations output root.",
     )
     parser.add_argument(
@@ -533,6 +534,18 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Stop campaign immediately when a day-run fails.",
     )
+    parser.add_argument(
+        "--smoke-test",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Allow stub-backed collection and synthetic validation only for smoke tests.",
+    )
+    parser.add_argument(
+        "--allow-stub-fallback",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Allow auto mode to fall back to stub collection during smoke tests.",
+    )
     return parser.parse_args()
 
 
@@ -558,6 +571,10 @@ def main() -> None:
 
     if args.mode == "live" and not os.getenv("MOLTBOOK_API_KEY"):
         raise SystemExit("MOLTBOOK_API_KEY is not set; cannot run in --mode live.")
+    if args.mode == "stub" and not bool(args.smoke_test):
+        raise SystemExit("--mode stub requires --smoke-test.")
+    if bool(args.allow_stub_fallback) and not bool(args.smoke_test):
+        raise SystemExit("--allow-stub-fallback requires --smoke-test.")
 
     start_date = (
         _parse_utc_date(args.start_date) if args.start_date is not None else _utc_now().date()
@@ -603,6 +620,8 @@ def main() -> None:
             "min_free_gb": float(args.min_free_gb),
             "sleep_between_days_seconds": int(args.sleep_between_days_seconds),
             "stop_on_failure": bool(args.stop_on_failure),
+            "smoke_test": bool(args.smoke_test),
+            "allow_stub_fallback": bool(args.allow_stub_fallback),
         },
         "runs": [],
     }
@@ -685,6 +704,10 @@ def main() -> None:
         ]
         if bool(args.include_submolts):
             collector_cmd.append("--include-submolts")
+        if bool(args.smoke_test):
+            collector_cmd.append("--smoke-test")
+        if bool(args.allow_stub_fallback):
+            collector_cmd.append("--allow-stub-fallback")
 
         collect_result = _run_command(
             name="collect",
@@ -759,6 +782,8 @@ def main() -> None:
                 "--chronology-skew-seconds",
                 str(int(args.chronology_skew_seconds)),
             ]
+            if bool(args.smoke_test):
+                validate_cmd.append("--allow-synthetic")
             validate_result = _run_command(
                 name="validate",
                 command=validate_cmd,
@@ -794,6 +819,9 @@ def main() -> None:
         storage_after_compression = _attempt_storage_stats(args.raw_root / run_date, attempt_id)
 
         disk_after = shutil.disk_usage(repo_root)
+        request_entries = _load_jsonl(request_log_path)
+        any_stub = any(str(entry.get("mode")) == "stub" for entry in request_entries)
+        any_synthetic = any(bool(entry.get("synthetic")) for entry in request_entries)
         status = "PASS"
         failure_reasons: list[str] = []
         warnings: list[str] = []
@@ -813,6 +841,13 @@ def main() -> None:
         if validation_summary_status == "FAIL":
             status = "FAIL"
             failure_reasons.append("validation_summary_fail")
+        if (any_stub or any_synthetic) and not bool(args.smoke_test):
+            status = "FAIL"
+            failure_reasons.append("synthetic_output_in_production")
+        elif any_stub or any_synthetic:
+            if status == "PASS":
+                status = "WARN"
+            warnings.append("smoke_test_used_synthetic_output")
         if validation_summary_status == "WARN" and status != "FAIL":
             ignorable_warns: set[str] = set()
             if int(args.max_post_details) == 0:

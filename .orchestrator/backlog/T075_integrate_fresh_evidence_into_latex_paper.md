@@ -53,7 +53,7 @@ The manuscript wrapper stays in LaTeX. Fresh evidence should be integrated witho
 
 - Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: project and runtime contracts
-- Upstream tasks or manifests: `T060`, `T070`
+- Upstream tasks or manifests: `T060`, `T072`
 - External references or systems: none
 
 ## Outputs
@@ -76,9 +76,9 @@ The manuscript wrapper stays in LaTeX. Fresh evidence should be integrated witho
 
 ## Validation / Commands
 
+- `latexmk -pdf -interaction=nonstopmode paper/main.tex`
 - `make gate`
 - `make test`
-- Add task-specific manuscript commands here.
 
 ## Status
 

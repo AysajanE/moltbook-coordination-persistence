@@ -328,6 +328,9 @@ def write_task(
     outputs: list[str] | None = None,
     gates: list[str] | None = None,
     stop_conditions: list[str] | None = None,
+    requires_tools: list[str] | None = None,
+    requires_env: list[str] | None = None,
+    validation_commands: list[str] | None = None,
     state: str = "backlog",
     last_updated: str = "2026-04-08",
     slug: str = "task",
@@ -340,6 +343,9 @@ def write_task(
     outputs = outputs or ["analysis/example.py"]
     gates = gates or ["make gate", "make test"]
     stop_conditions = stop_conditions or ["Need @human"]
+    requires_tools = requires_tools or []
+    requires_env = requires_env or []
+    validation_commands = validation_commands or ["`make gate`", "`make test`"]
 
     frontmatter = "\n".join(
         [
@@ -353,6 +359,8 @@ def write_task(
             f'priority: "{priority}"',
             _emit_list("dependencies", dependencies),
             _emit_list("integration_ready_dependencies", integration_ready_dependencies),
+            _emit_list("requires_tools", requires_tools),
+            _emit_list("requires_env", requires_env),
             _emit_list("allowed_paths", allowed_paths),
             _emit_list("disallowed_paths", disallowed_paths),
             _emit_list("outputs", outputs),
@@ -388,8 +396,7 @@ def write_task(
             "",
             "## Validation / Commands",
             "",
-            "- `make gate`",
-            "- `make test`",
+            *[f"- {command}" for command in validation_commands],
             "",
             "## Status",
             "",
@@ -416,6 +423,8 @@ def write_run_manifest(
     workstream: str = "W1",
     state_before: str = "active",
     state_after: str = "ready_for_review",
+    result_status: str = "ok",
+    blocked_reasons: list[str] | None = None,
 ) -> Path:
     rel = f"reports/status/swarm_runs/{task_id}_20260408T000000Z.json"
     payload = {
@@ -469,8 +478,8 @@ def write_run_manifest(
             "missing_manifests": [],
         },
         "result": {
-            "status": "ok",
-            "blocked_reasons": [],
+            "status": result_status,
+            "blocked_reasons": blocked_reasons or [],
         },
     }
     return write_json(root, rel, payload)

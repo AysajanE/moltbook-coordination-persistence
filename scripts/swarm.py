@@ -95,6 +95,8 @@ REQUIRED_FRONTMATTER_KEYS = (
     "stop_conditions",
 )
 VALID_TASK_PRIORITIES = {"low", "medium", "high"}
+DEFAULT_PREFLIGHT_COMMANDS = ("make gate", "make test")
+REVIEWABLE_RUN_MANIFEST_STATES = ("integration_ready", "ready_for_review")
 
 _PREFLIGHT_STRICT_SYNC_CACHE: set[tuple[str, bool, bool]] = set()
 _REPO_ROOT_CACHE: Path | None = None
@@ -138,6 +140,8 @@ class Task:
     outputs: list[str]
     gates: list[str]
     stop_conditions: list[str]
+    requires_tools: list[str]
+    requires_env: list[str]
     state: str
     last_updated: str
 
@@ -304,6 +308,14 @@ def _coerce_str_list(value: object) -> list[str]:
             if stripped:
                 out.append(stripped)
     return out
+
+
+def _json_load_file(path: Path) -> dict[str, Any] | None:
+    try:
+        data = json.loads(_read_text(path))
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _parse_project_mode(path: Path) -> str | None:
@@ -572,6 +584,8 @@ def load_task(path: Path, contract: FrameworkContract) -> Task:
         outputs=require_list("outputs"),
         gates=require_list("gates"),
         stop_conditions=require_list("stop_conditions"),
+        requires_tools=_coerce_str_list(frontmatter.get("requires_tools")),
+        requires_env=_coerce_str_list(frontmatter.get("requires_env")),
         state=state,
         last_updated=last_updated,
     )
@@ -635,6 +649,27 @@ def dependency_is_satisfied(dep_id: str, downstream_task: Task, tasks: dict[str,
 
 def _dependencies_satisfied(task: Task, tasks: dict[str, Task], contract: FrameworkContract) -> bool:
     return all(dependency_is_satisfied(dep_id, task, tasks, contract) for dep_id in task.dependencies)
+
+
+def _unsatisfied_dependencies(task: Task, tasks: dict[str, Task], contract: FrameworkContract) -> list[str]:
+    return [dep_id for dep_id in task.dependencies if not dependency_is_satisfied(dep_id, task, tasks, contract)]
+
+
+def _missing_required_tools(task: Task) -> list[str]:
+    missing: list[str] = []
+    for name in task.requires_tools:
+        if _which_or_none(name) is None:
+            missing.append(name)
+    return missing
+
+
+def _missing_required_env(task: Task) -> list[str]:
+    missing: list[str] = []
+    for name in task.requires_env:
+        value = os.environ.get(name)
+        if value is None or not value.strip():
+            missing.append(name)
+    return missing
 
 
 def _priority_rank(priority: str) -> int:
@@ -1025,6 +1060,15 @@ def _supervisor_sync_to_remote_base(*, repo: Path, remote: str, base_branch: str
     _run(["git", "checkout", "-B", base_branch, f"{remote}/{base_branch}"], cwd=repo, check=True)
 
 
+def _fetch_remote_base_ref(*, repo: Path, remote: str, base_branch: str) -> str:
+    _run(["git", "fetch", remote, base_branch], cwd=repo, check=True)
+    ref = f"{remote}/{base_branch}"
+    cp = _run(["git", "rev-parse", "--verify", "--quiet", ref], cwd=repo, capture=True, check=False)
+    if cp.returncode != 0:
+        raise SystemExit(f"preflight_failed:missing_remote_base_ref:{ref}")
+    return ref
+
+
 def _git_diff_name_status_entries(cwd: Path, diff_args: list[str]) -> list[dict[str, str]]:
     cp = _run(
         ["git", "diff", "--name-status", "-M", *diff_args],
@@ -1146,7 +1190,7 @@ def _path_is_allowed(
     return False, "outside_allowed_paths"
 
 
-_OUTPUT_WILDCARD_TOKENS = ("...", "YYYY-MM-DD", "<", ">", "*", "?")
+_OUTPUT_WILDCARD_TOKENS = ("...", "YYYY-MM-DD", "YYYYMMDD", "<", ">", "*", "?")
 
 
 def _output_spec_is_safe(spec: str) -> tuple[bool, str | None]:
@@ -1163,10 +1207,12 @@ def _output_spec_is_safe(spec: str) -> tuple[bool, str | None]:
 def _segment_pattern_to_regex(segment: str) -> re.Pattern[str]:
     rendered = re.sub(r"<[^>]+>", "{WILD}", segment)
     rendered = rendered.replace("YYYY-MM-DD", "{DATE}")
+    rendered = rendered.replace("YYYYMMDD", "{DATE_COMPACT}")
     rendered = rendered.replace("...", "{ELLIPSIS}")
     regex = re.escape(rendered)
     regex = regex.replace(re.escape("{WILD}"), r"[^/]+")
     regex = regex.replace(re.escape("{DATE}"), r"\d{4}-\d{2}-\d{2}")
+    regex = regex.replace(re.escape("{DATE_COMPACT}"), r"\d{8}")
     regex = regex.replace(re.escape("{ELLIPSIS}"), r".*")
     regex = regex.replace(r"\*", ".*").replace(r"\?", ".")
     return re.compile("^" + regex + "$")
@@ -1203,6 +1249,127 @@ def _find_paths_matching_output_spec(*, repo: Path, spec: str) -> list[Path]:
         if not current:
             break
     return current
+
+
+def _fingerprint_path(path: Path) -> dict[str, object]:
+    try:
+        stat_result = path.stat()
+    except FileNotFoundError:
+        return {"path": str(path), "kind": "missing"}
+
+    if path.is_file():
+        return {
+            "path": str(path),
+            "kind": "file",
+            "mtime_ns": int(stat_result.st_mtime_ns),
+            "size_bytes": int(stat_result.st_size),
+        }
+
+    latest_mtime_ns = int(stat_result.st_mtime_ns)
+    file_count = 0
+    total_size_bytes = 0
+    for child in path.rglob("*"):
+        try:
+            child_stat = child.stat()
+        except FileNotFoundError:
+            continue
+        latest_mtime_ns = max(latest_mtime_ns, int(child_stat.st_mtime_ns))
+        if child.is_file():
+            file_count += 1
+            total_size_bytes += int(child_stat.st_size)
+
+    return {
+        "path": str(path),
+        "kind": "dir",
+        "mtime_ns": int(stat_result.st_mtime_ns),
+        "latest_mtime_ns": latest_mtime_ns,
+        "file_count": file_count,
+        "total_size_bytes": total_size_bytes,
+    }
+
+
+def _capture_declared_output_state(*, repo: Path, task: Task) -> dict[str, list[dict[str, object]]]:
+    captured: dict[str, list[dict[str, object]]] = {}
+    for raw_spec in task.outputs:
+        ok, _ = _output_spec_is_safe(raw_spec)
+        if not ok:
+            captured[raw_spec] = []
+            continue
+        kind = _guess_output_kind(raw_spec)
+        match_spec = _strip_trailing_ellipsis(raw_spec) if kind == "dir_nonempty" else raw_spec
+        matches = _find_paths_matching_output_spec(repo=repo, spec=match_spec)
+        captured[raw_spec] = [_fingerprint_path(path) for path in matches]
+    return captured
+
+
+def _output_state_changed(before: dict[str, object] | None, after: dict[str, object]) -> bool:
+    if before is None:
+        return True
+    if before.get("kind") != after.get("kind"):
+        return True
+    for key in ("mtime_ns", "size_bytes", "latest_mtime_ns", "file_count", "total_size_bytes"):
+        if before.get(key) != after.get(key):
+            return True
+    return False
+
+
+def _snapshot_touched_by_changes(snapshot: dict[str, object], changed_paths: set[str]) -> bool:
+    raw_path = snapshot.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        return False
+    norm = _normalize_repo_relative_path(raw_path)
+    for changed in changed_paths:
+        if changed == norm or changed.startswith(norm.rstrip("/") + "/"):
+            return True
+    return False
+
+
+def _check_declared_outputs_fresh(
+    *,
+    repo: Path,
+    task: Task,
+    before_state: dict[str, list[dict[str, object]]],
+    changed_paths: list[str],
+) -> tuple[bool, list[dict[str, object]], list[dict[str, str]]]:
+    details: list[dict[str, object]] = []
+    failures: list[dict[str, str]] = []
+    changed_path_set = {_normalize_repo_relative_path(path) for path in changed_paths}
+
+    for raw_spec in task.outputs:
+        ok, reason = _output_spec_is_safe(raw_spec)
+        if not ok:
+            failures.append({"output": raw_spec, "reason": reason or "invalid_output_spec"})
+            continue
+
+        kind = _guess_output_kind(raw_spec)
+        match_spec = _strip_trailing_ellipsis(raw_spec) if kind == "dir_nonempty" else raw_spec
+        current_matches = _find_paths_matching_output_spec(repo=repo, spec=match_spec)
+        current_state = [_fingerprint_path(path) for path in current_matches]
+        before_by_path = {
+            str(item.get("path")): item for item in before_state.get(raw_spec, []) if isinstance(item, dict)
+        }
+
+        fresh_paths: list[str] = []
+        for snapshot in current_state:
+            snapshot_path = str(snapshot.get("path"))
+            if _snapshot_touched_by_changes(snapshot, changed_path_set) or _output_state_changed(
+                before_by_path.get(snapshot_path),
+                snapshot,
+            ):
+                fresh_paths.append(snapshot_path)
+
+        details.append(
+            {
+                "output": raw_spec,
+                "matched_paths": [str(item.get("path")) for item in current_state],
+                "fresh_paths": fresh_paths,
+            }
+        )
+
+        if not fresh_paths:
+            failures.append({"output": raw_spec, "reason": "stale_output"})
+
+    return len(failures) == 0, details, failures
 
 
 def _guess_output_kind(spec: str) -> str:
@@ -1302,16 +1469,20 @@ def _matching_task_jsons(directory: Path, task_id: str) -> list[Path]:
 
 
 def _is_valid_run_manifest(path: Path, task_id: str) -> bool:
-    try:
-        data = json.loads(_read_text(path))
-    except Exception:
-        return False
-    if not isinstance(data, dict):
+    data = _json_load_file(path)
+    if data is None:
         return False
     if data.get("schema_version") != SWARM_RUN_MANIFEST_SCHEMA_VERSION:
         return False
     task = data.get("task")
-    return isinstance(task, dict) and task.get("task_id") == task_id
+    result = data.get("result")
+    return (
+        isinstance(task, dict)
+        and task.get("task_id") == task_id
+        and task.get("state_after") in set(REVIEWABLE_RUN_MANIFEST_STATES)
+        and isinstance(result, dict)
+        and result.get("status") == "ok"
+    )
 
 
 def _is_valid_review_log(path: Path, task_id: str, scientific_review_role: str) -> bool:
@@ -1418,6 +1589,28 @@ def _run_gates(repo: Path, gates: list[str]) -> tuple[bool, list[dict[str, objec
     return all_ok, outputs
 
 
+def _run_task_preflight(*, repo: Path, task: Task, tasks: dict[str, Task], contract: FrameworkContract) -> tuple[bool, dict[str, object]]:
+    dependency_failures = _unsatisfied_dependencies(task, tasks, contract)
+    missing_tools = _missing_required_tools(task)
+    missing_env = _missing_required_env(task)
+    command_ok, command_outputs = _run_gates(repo, list(DEFAULT_PREFLIGHT_COMMANDS))
+
+    report = {
+        "dependencies_ok": not dependency_failures,
+        "dependency_failures": dependency_failures,
+        "required_tools_ok": not missing_tools,
+        "missing_tools": missing_tools,
+        "required_env_ok": not missing_env,
+        "missing_env": missing_env,
+        "commands_ok": command_ok,
+        "commands": command_outputs,
+    }
+    return (
+        not dependency_failures and not missing_tools and not missing_env and command_ok,
+        report,
+    )
+
+
 def _executor_prompt_path(task: Task, contract: FrameworkContract) -> Path:
     key = "operator" if task.role == "Operator" else "worker"
     return contract.prompt_templates[key]
@@ -1479,6 +1672,7 @@ def cmd_tick(args: argparse.Namespace) -> int:
 
     worktree_parent = Path(args.worktree_parent).expanduser().resolve() if args.worktree_parent else repo.parent
     worktree_parent.mkdir(parents=True, exist_ok=True)
+    base_ref = _fetch_remote_base_ref(repo=repo, remote=args.remote, base_branch=args.base_branch)
 
     started: list[dict[str, str]] = []
     if args.runner == "tmux":
@@ -1491,7 +1685,7 @@ def cmd_tick(args: argparse.Namespace) -> int:
             repo=repo,
             task=task,
             worktree_parent=worktree_parent,
-            base_ref=args.base_branch,
+            base_ref=base_ref,
         )
         started.append(
             {
@@ -1666,6 +1860,28 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     if task.state not in {"backlog", "active", "blocked", "integration_ready"}:
         raise SystemExit(f"task_not_runnable_from_state:{task.task_id}:{task.state}")
 
+    preflight_ok, preflight_report = _run_task_preflight(repo=repo, task=task, tasks=tasks, contract=contract)
+    if not preflight_ok:
+        preflight_failures: list[str] = []
+        if not preflight_report["dependencies_ok"]:
+            preflight_failures.append(
+                "unsatisfied_dependencies:" + ",".join(str(item) for item in preflight_report["dependency_failures"])
+            )
+        if not preflight_report["required_tools_ok"]:
+            preflight_failures.append("missing_tools:" + ",".join(str(item) for item in preflight_report["missing_tools"]))
+        if not preflight_report["required_env_ok"]:
+            preflight_failures.append("missing_env:" + ",".join(str(item) for item in preflight_report["missing_env"]))
+        if not preflight_report["commands_ok"]:
+            failed_commands = [
+                str(item.get("command"))
+                for item in preflight_report["commands"]
+                if isinstance(item, dict) and item.get("returncode") not in {0, None}
+            ]
+            preflight_failures.append("preflight_commands_failed:" + ",".join(failed_commands))
+        raise SystemExit("preflight_failed:" + ";".join(preflight_failures))
+
+    output_state_before = _capture_declared_output_state(repo=repo, task=task)
+
     state_before = task.state
     if task.state == "backlog":
         _update_task_status_and_notes(
@@ -1807,6 +2023,19 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     if not outputs_ok:
         blocked_reasons.append("missing_outputs")
 
+    freshness_ok = False
+    freshness_details: list[dict[str, object]] = []
+    freshness_failures: list[dict[str, str]] = []
+    if outputs_ok:
+        freshness_ok, freshness_details, freshness_failures = _check_declared_outputs_fresh(
+            repo=repo,
+            task=task,
+            before_state=output_state_before,
+            changed_paths=changed_paths,
+        )
+        if not freshness_ok:
+            blocked_reasons.append("stale_outputs")
+
     manifest_failures = required_manifest_failures(repo, task)
     if manifest_failures:
         blocked_reasons.append("missing_required_manifests")
@@ -1842,6 +2071,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
             "state_before": state_before,
             "state_after": state_after,
         },
+        "preflight": preflight_report,
         "repo": {
             "branch": _git_current_branch(repo),
             "git_sha": _git_head_sha(repo),
@@ -1873,6 +2103,9 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         "artifacts": {
             "outputs_ok": outputs_ok,
             "missing_outputs": output_failures,
+            "freshness_ok": freshness_ok,
+            "freshness": freshness_details,
+            "stale_outputs": freshness_failures,
             "required_manifests_ok": not manifest_failures,
             "missing_manifests": manifest_failures,
             "run_manifest_path": run_manifest_relpath,
@@ -1886,13 +2119,13 @@ def cmd_run_task(args: argparse.Namespace) -> int:
 
     if state_after == "integration_ready":
         note = (
-            f"Runtime passed: outputs, gates, manifests, and run manifest are present. "
+            f"Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. "
             f"Marked integration_ready for explicitly allowlisted downstream consumers. "
             f"Run manifest: {run_manifest_relpath}"
         )
     elif state_after == "ready_for_review":
         note = (
-            f"Runtime passed: outputs, gates, manifests, and run manifest are present. "
+            f"Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. "
             f"Ready for Judge review. Run manifest: {run_manifest_relpath}"
         )
     else:
@@ -1905,6 +2138,10 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         if output_failures:
             details.append(
                 "outputs=" + "; ".join(f"{item['output']}={item['reason']}" for item in output_failures)
+            )
+        if freshness_failures:
+            details.append(
+                "freshness=" + "; ".join(f"{item['output']}={item['reason']}" for item in freshness_failures)
             )
         if manifest_failures:
             details.append("manifests=" + ",".join(manifest_failures))

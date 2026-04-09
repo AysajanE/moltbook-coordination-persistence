@@ -57,6 +57,14 @@ Suggested worktree pattern:
 - Clean up the finished branch or worktree.
 - Launch the next ready task.
 
+## 5a) Rollback and incident handling
+
+- If a runtime run manifest is wrong or incomplete, return the task to `active` or `blocked`, record the reason in the task log, and rerun after correction. Do not count the stale manifest toward review.
+- If a Judge review log was written with the wrong outcome or state, write a correcting review log, update the task state to match the corrected decision, and record the correction in `## Notes / Decisions`.
+- If a task file lands in the wrong lifecycle folder, fix the authoritative `State:` first, then run `python scripts/sweep_tasks.py` to reconcile projection.
+- If blocked or invalid work was merged accidentally, revert the merge on `main`, restore the correct task state, and note the rollback in the relevant task file plus any downstream handoff note.
+- After any rollback, remove or recreate the affected worktree before resuming execution so the next run starts from a clean branch state.
+
 ## 6) Current flagship queue
 
 1. `T020` SimulaMet raw acquisition

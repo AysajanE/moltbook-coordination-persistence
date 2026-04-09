@@ -15,8 +15,10 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "derived/"
+  - "analysis/build_moltnet_parent_units.py"
+  - "analysis/build_moltnet_control_panel_summary.py"
+  - "derived/parent_units_moltnet.parquet"
+  - "derived/control_panel_summary_moltnet.parquet"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -77,9 +79,10 @@ After the MoltNet freeze and QC packet are complete, the flagship repo can build
 
 ## Validation / Commands
 
+- `python analysis/build_moltnet_parent_units.py --freeze-root frozen/moltnet_firstweek_aligned --qc-report qc/archive_qc_report_moltnet.md --out derived/parent_units_moltnet.parquet`
+- `python analysis/build_moltnet_control_panel_summary.py --parent-units derived/parent_units_moltnet.parquet --out derived/control_panel_summary_moltnet.parquet`
 - `make gate`
 - `make test`
-- Add task-specific MoltNet derived-table commands here.
 
 ## Status
 

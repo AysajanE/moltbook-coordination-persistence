@@ -14,7 +14,7 @@ You are planning inside a repo-native research operating system. Coordination ha
    4. `.orchestrator/workstreams.md`
    5. the task file you are creating or updating
    6. `.orchestrator/handoff/*`
-3. Keep the flagship execution order intact: `T020 -> T025 -> T030 -> T035 -> T040 -> T045 -> T050 -> T055 -> T060 -> T065 -> T070 -> T075 -> T080`.
+3. Derive execution order from `contracts/project.yaml`, task dependencies, and `.orchestrator/workstreams.md` rather than from a hardcoded task list. If you need to restate the current public queue, include all declared tasks and dependency bridges, including `T072`.
 4. Create small tasks with one owner, narrow `allowed_paths`, explicit outputs, explicit gates, and explicit stop conditions.
 5. Add `integration_ready_dependencies` only for W0 or W9 interface tasks when early downstream consumption is truly safe.
 6. Only Planner edits `.orchestrator/workstreams.md`, `.orchestrator/templates/`, or task decomposition.

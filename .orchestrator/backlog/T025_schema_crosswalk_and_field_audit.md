@@ -15,8 +15,9 @@ requires_tools:
 requires_env: []
 allowed_paths:
   - "analysis/hf_archive_schema_discovery.py"
-  - "manifests/"
-  - "qc/"
+  - "manifests/schema_crosswalk.yaml"
+  - "qc/field_validation_simulamet.csv"
+  - "qc/missingness_simulamet.csv"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -77,9 +78,9 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 
 ## Validation / Commands
 
+- `python analysis/hf_archive_schema_discovery.py --raw-manifest manifests/simulamet_manifest.yaml --archive-name simulamet --out-crosswalk manifests/schema_crosswalk.yaml --out-field-validation qc/field_validation_simulamet.csv --out-missingness qc/missingness_simulamet.csv`
 - `make gate`
 - `make test`
-- Add task-specific schema audit commands here.
 
 ## Status
 

@@ -85,13 +85,13 @@ def _timestamp_parse_rate(df: pd.DataFrame, raw_col: str, utc_col: str) -> dict[
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate curated Moltbook API tables for basic invariants."
+        description="Validate frozen Moltbook API tables for basic invariants and production-mode safety."
     )
     parser.add_argument(
         "--curated-root",
         type=Path,
         required=True,
-        help="Curated root (e.g., data_curated/moltbook).",
+        help="Curated root (e.g., frozen/moltbook_api).",
     )
     parser.add_argument(
         "--run-id", required=True, help="run_id / attempt_id partition to validate."
@@ -114,6 +114,11 @@ def parse_args() -> argparse.Namespace:
         default=300,
         help="Allowed negative skew (comment earlier than post) in seconds.",
     )
+    parser.add_argument(
+        "--allow-synthetic",
+        action="store_true",
+        help="Allow stub or synthetic request-log content for smoke tests.",
+    )
     return parser.parse_args()
 
 
@@ -131,6 +136,7 @@ def main() -> None:
         for e in request_entries
     )
     any_stub = any(e.get("mode") == "stub" for e in request_entries)
+    any_synthetic = any(bool(e.get("synthetic")) for e in request_entries)
     effective_mode = "live_or_unauth" if any_live_success else ("stub" if any_stub else "unknown")
 
     # Load curated tables
@@ -171,6 +177,16 @@ def main() -> None:
             "error_rate": error_rate,
             "feed_requests_total": len(feed_req),
             "feed_requests_200": feed_200,
+        },
+    )
+    synthetic_forbidden = (any_stub or any_synthetic) and not bool(args.allow_synthetic)
+    checks["synthetic_data_forbidden_in_production"] = CheckResult(
+        status="FAIL" if synthetic_forbidden else ("WARN" if any_stub or any_synthetic else "PASS"),
+        details={
+            "allow_synthetic": bool(args.allow_synthetic),
+            "any_stub": any_stub,
+            "any_synthetic": any_synthetic,
+            "effective_mode": effective_mode,
         },
     )
 
@@ -343,6 +359,7 @@ def main() -> None:
         "run_id": run_id,
         "request_log": str(args.request_log),
         "effective_mode": effective_mode,
+        "allow_synthetic": bool(args.allow_synthetic),
         "row_counts": {
             "feed_snapshots": int(feed.shape[0]),
             "posts": int(posts.shape[0]),

@@ -4,448 +4,786 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.dataset as ds
-import pyarrow.parquet as pq
 
-DEFAULT_SUBSETS = [
-    "agents",
-    "comments",
-    "posts",
-    "snapshots",
-    "submolts",
-    "word_frequency",
+GAP_LOG_HOURS = 6.0
+SEVERE_GAP_HOURS = 24.0
+SIMULAMET_BENCHMARKS = {
+    "comments_rows": 226_173,
+    "unique_comment_ids": 223_317,
+    "candidate_parent_units": 223_316,
+    "missing_author_ids": 906,
+    "gap_start": "2026-01-31T10:37:53+00:00",
+    "gap_end": "2026-02-02T04:20:50+00:00",
+    "gap_hours": 41.7,
+    "gap_posts": 38_166,
+    "gap_snapshots": 39,
+    "gap_word_frequency": 5_039,
+    "q_5m": 0.0942,
+    "q_1h": 0.0982,
+    "p_obs": 0.0960,
+    "t50_seconds": 4.55,
+    "t90_seconds": 50.05,
+}
+EMPTY_EXCLUSION_COLUMNS = [
+    "archive_name",
+    "subset",
+    "entity_id",
+    "exclusion_reason",
+    "notes",
 ]
-
-
-@dataclass(frozen=True)
-class CheckResult:
-    status: str  # PASS/WARN/FAIL
-    details: dict[str, Any]
+EMPTY_OVERRIDE_COLUMNS = [
+    "archive_name",
+    "override_type",
+    "target_id",
+    "field_name",
+    "original_value",
+    "override_value",
+    "justification",
+    "approved_by",
+    "approved_at_utc",
+]
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
+def _load_frame(root: Path, subset: str) -> pd.DataFrame:
+    path = root / f"{subset}.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_parquet(path)
 
 
-def _read_dataset(curated_dir: Path, subset: str, columns: list[str] | None = None) -> pd.DataFrame:
-    dataset = ds.dataset(
-        str(curated_dir / subset),
-        format="parquet",
-        partitioning="hive",
-    )
-    table = dataset.to_table(columns=columns)
-    return table.to_pandas()
+def _coerce_timestamp(series: pd.Series | None) -> pd.Series:
+    if series is None:
+        return pd.Series(dtype="datetime64[ns, UTC]")
+    return pd.to_datetime(series, errors="coerce", utc=True)
 
 
-def _parse_dt_utc(value: str | None) -> pd.Timestamp | None:
-    if value is None:
-        return None
-    ts = pd.to_datetime(value, errors="coerce", utc=True)
-    return None if pd.isna(ts) else ts
-
-
-def _infer_pull_time(out_path: Path, curated_dir: Path) -> dict[str, Any]:
-    attempt_dir = out_path.parent
-    run_manifest_path = attempt_dir / "run_manifest.json"
-    started_at_utc = None
-    if run_manifest_path.exists():
-        manifest = _load_json(run_manifest_path)
-        started_at_utc = manifest.get("started_at_utc")
-
-    snapshot_id = curated_dir.name
-    raw_export_manifest = Path("data_raw") / "hf_archive" / snapshot_id / "EXPORT_MANIFEST.json"
-    exported_at_utc = None
-    if raw_export_manifest.exists():
-        raw_manifest = _load_json(raw_export_manifest)
-        exported_at_utc = raw_manifest.get("exported_at")
-
-    started_ts = _parse_dt_utc(started_at_utc)
-    exported_ts = _parse_dt_utc(exported_at_utc)
-
-    reference = (
-        "run_manifest.started_at_utc"
-        if started_ts is not None
-        else "raw_export_manifest.exported_at"
-    )
-    pull_time = started_ts or exported_ts or pd.Timestamp.now(tz="UTC")
-
-    return {
-        "reference": reference,
-        "pull_time_utc": pull_time.isoformat(),
-        "started_at_utc": started_at_utc,
-        "exported_at_utc": exported_at_utc,
-        "run_manifest_path": str(run_manifest_path) if run_manifest_path.exists() else None,
-        "raw_export_manifest_path": (
-            str(raw_export_manifest) if raw_export_manifest.exists() else None
-        ),
-    }
-
-
-def _status_from_rate(rate: float | None, pass_min: float = 0.99, warn_min: float = 0.90) -> str:
-    if rate is None:
-        return "PASS"
-    if rate >= pass_min:
-        return "PASS"
-    if rate >= warn_min:
+def _status(*, violations: int, hard_fail: bool = True, warn_threshold: float | None = None, rate: float | None = None) -> str:
+    if violations > 0 and hard_fail:
+        return "FAIL"
+    if warn_threshold is not None and rate is not None and rate < warn_threshold:
         return "WARN"
-    return "FAIL"
+    return "PASS"
 
 
-def _uniqueness_by_day(df: pd.DataFrame, id_col: str, day_col: str) -> CheckResult:
-    if df.empty:
-        return CheckResult(status="WARN", details={"reason": "empty_table"})
-
-    dup_counts = (
-        df.groupby([day_col, id_col], dropna=False)
-        .size()
-        .reset_index(name="n")
-        .query("n > 1")
-        .groupby(day_col)["n"]
-        .sum()
-        .sort_index()
-    )
-    total_dup_rows = int(dup_counts.sum()) if not dup_counts.empty else 0
-    status = "PASS" if total_dup_rows == 0 else "WARN"
-    return CheckResult(
-        status=status,
-        details={
-            "id_col": id_col,
-            "day_col": day_col,
-            "duplicate_rows_total": total_dup_rows,
-            "duplicate_rows_by_day": {str(k): int(v) for k, v in dup_counts.items()},
-        },
-    )
+def _write_csv(path: Path, rows: list[dict[str, Any]], columns: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        frame = pd.DataFrame(columns=columns)
+    else:
+        for column in columns:
+            if column not in frame.columns:
+                frame[column] = pd.NA
+        frame = frame.loc[:, columns]
+    frame.to_csv(path, index=False)
 
 
-def _timestamp_parse_rate(
-    df: pd.DataFrame, raw_col: str, utc_col: str
-) -> dict[str, Any]:
-    raw = df.get(raw_col)
-    utc = df.get(utc_col)
-    if raw is None or utc is None:
-        return {"error": "missing_columns", "raw_col": raw_col, "utc_col": utc_col}
-
-    nonnull = raw.notna().sum()
-    parsed_ok = utc.notna().sum()
-    parsed_fail = int(nonnull - parsed_ok)
-    rate = (float(parsed_ok) / float(nonnull)) if nonnull else None
-    return {
-        "raw_col": raw_col,
-        "utc_col": utc_col,
-        "nonnull": int(nonnull),
-        "parsed_success": int(parsed_ok),
-        "parsed_fail": parsed_fail,
-        "parse_rate": rate,
-    }
+def _markdown_table(rows: list[dict[str, Any]], columns: list[tuple[str, str]]) -> str:
+    headers = [label for _, label in columns]
+    out = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
+    for row in rows:
+        rendered: list[str] = []
+        for key, _ in columns:
+            value = row.get(key)
+            if isinstance(value, float):
+                rendered.append(f"{value:.4f}")
+            else:
+                rendered.append("" if value is None else str(value))
+        out.append("| " + " | ".join(rendered) + " |")
+    return "\n".join(out)
 
 
-def _referential_integrity(
+def _check_required_columns(frame: pd.DataFrame, subset: str, required: list[str]) -> None:
+    missing = [column for column in required if column not in frame.columns]
+    if missing:
+        raise SystemExit(f"{subset}:missing_required_columns:{','.join(missing)}")
+
+
+def _cycle_count(parent_map: dict[str, str]) -> int:
+    visited: dict[str, str] = {}
+    cycles = 0
+    for node in parent_map:
+        if visited.get(node) == "done":
+            continue
+        current = node
+        path: set[str] = set()
+        while current in parent_map:
+            if current in path:
+                cycles += 1
+                break
+            if visited.get(current) == "done":
+                break
+            path.add(current)
+            current = parent_map[current]
+        for item in path:
+            visited[item] = "done"
+    return cycles
+
+
+def _build_linkage_audit(
+    *,
+    archive_name: str,
     comments: pd.DataFrame,
     posts: pd.DataFrame,
     agents: pd.DataFrame,
-) -> CheckResult:
-    details: dict[str, Any] = {}
+) -> tuple[list[dict[str, Any]], bool]:
+    linkage_rows: list[dict[str, Any]] = []
+    hard_fail = False
 
-    posts_ids = set(posts["id"].dropna().astype(str)) if "id" in posts.columns else set()
-    comments_ids = set(comments["id"].dropna().astype(str)) if "id" in comments.columns else set()
-    agent_ids = set(agents["id"].dropna().astype(str)) if "id" in agents.columns else set()
-
-    def _missing_rate(series: pd.Series, universe: set[str]) -> tuple[int, int, float | None]:
-        nonnull = series.dropna().astype(str)
-        if nonnull.empty:
-            return 0, 0, None
-        missing = int((~nonnull.isin(universe)).sum())
-        total = int(len(nonnull))
-        return missing, total, (missing / total) if total else None
-
-    if "post_id" in comments.columns:
-        missing, total, rate = _missing_rate(comments["post_id"], posts_ids)
-        details["comments_post_id_in_posts_id"] = {
-            "missing": missing,
-            "total_nonnull": total,
-            "missing_rate": rate,
+    comment_threads = comments["thread_id"].astype("string")
+    post_threads = set(posts["thread_id"].dropna().astype("string"))
+    unresolved_post_links = int((comment_threads.notna() & ~comment_threads.isin(post_threads)).sum())
+    checked_post_links = int(comment_threads.notna().sum())
+    post_resolution_rate = (
+        (checked_post_links - unresolved_post_links) / checked_post_links if checked_post_links else None
+    )
+    post_status = _status(violations=unresolved_post_links, hard_fail=True)
+    hard_fail = hard_fail or post_status == "FAIL"
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "comments_thread_id_resolves_to_posts",
+            "status": post_status,
+            "rows_checked": checked_post_links,
+            "violations": unresolved_post_links,
+            "resolution_rate": post_resolution_rate,
+            "notes": "Every curated comment thread_id must resolve to a canonical post row.",
         }
-    else:
-        details["comments_post_id_in_posts_id"] = {"error": "missing_comments.post_id"}
-
-    if "parent_id" in comments.columns:
-        parent = comments["parent_id"]
-        missing, total, rate = _missing_rate(parent[parent.notna()], comments_ids)
-        details["comments_parent_id_in_comments_id"] = {
-            "missing": missing,
-            "total_nonnull": total,
-            "missing_rate": rate,
-        }
-    else:
-        details["comments_parent_id_in_comments_id"] = {"error": "missing_comments.parent_id"}
-
-    for table_name, df, col in [
-        ("posts", posts, "agent_id"),
-        ("comments", comments, "agent_id"),
-    ]:
-        key = f"{table_name}_{col}_in_agents_id"
-        if col in df.columns:
-            missing, total, rate = _missing_rate(df[col], agent_ids)
-            details[key] = {"missing": missing, "total_nonnull": total, "missing_rate": rate}
-        else:
-            details[key] = {"error": f"missing_{table_name}.{col}"}
-
-    # status thresholds: tolerate small mismatches due to lag/backfill.
-    fail = False
-    warn = False
-    for entry in details.values():
-        rate = entry.get("missing_rate")
-        if rate is None:
-            continue
-        if rate > 0.01:
-            fail = True
-        elif rate > 0:
-            warn = True
-    status = "FAIL" if fail else ("WARN" if warn else "PASS")
-    return CheckResult(status=status, details=details)
-
-
-def _monotonicity_agents(agents: pd.DataFrame) -> CheckResult:
-    required = {"first_seen_at_utc", "last_seen_at_utc"}
-    if not required.issubset(set(agents.columns)):
-        return CheckResult(
-            status="FAIL",
-            details={"error": "missing_columns", "required": sorted(required)},
-        )
-
-    first = pd.to_datetime(agents["first_seen_at_utc"], errors="coerce", utc=True)
-    last = pd.to_datetime(agents["last_seen_at_utc"], errors="coerce", utc=True)
-    mask = first.notna() & last.notna()
-    violations = int((last[mask] < first[mask]).sum())
-    status = "PASS" if violations == 0 else "WARN"
-    return CheckResult(
-        status=status,
-        details={"violations": violations, "checked_rows": int(mask.sum())},
     )
 
+    parent_rows = comments.loc[comments["parent_comment_id"].notna(), ["comment_id", "thread_id", "parent_comment_id"]].copy()
+    parent_lookup = comments.loc[:, ["comment_id", "thread_id", "created_at_utc"]].rename(
+        columns={
+            "comment_id": "parent_comment_id",
+            "thread_id": "parent_thread_id",
+            "created_at_utc": "parent_created_at_utc",
+        }
+    )
+    parent_rows = parent_rows.merge(parent_lookup, on="parent_comment_id", how="left")
+    unresolved_parent = int(parent_rows["parent_thread_id"].isna().sum())
+    wrong_thread = int(
+        (
+            parent_rows["parent_thread_id"].notna()
+            & (parent_rows["thread_id"].astype("string") != parent_rows["parent_thread_id"].astype("string"))
+        ).sum()
+    )
+    parent_status = _status(violations=unresolved_parent + wrong_thread, hard_fail=True)
+    hard_fail = hard_fail or parent_status == "FAIL"
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "parent_comment_resolves_same_thread",
+            "status": parent_status,
+            "rows_checked": int(parent_rows.shape[0]),
+            "violations": unresolved_parent + wrong_thread,
+            "resolution_rate": (
+                ((int(parent_rows.shape[0]) - unresolved_parent - wrong_thread) / int(parent_rows.shape[0]))
+                if int(parent_rows.shape[0])
+                else None
+            ),
+            "notes": f"unresolved_parent={unresolved_parent}; parent_wrong_thread={wrong_thread}",
+        }
+    )
 
-def _future_timestamps(
-    tables: dict[str, pd.DataFrame],
-    pull_time_utc: pd.Timestamp,
-    utc_columns_by_table: dict[str, Iterable[str]],
-) -> CheckResult:
-    details: dict[str, Any] = {"pull_time_utc": pull_time_utc.isoformat(), "tables": {}}
-    total_future = 0
-    for table_name, df in tables.items():
-        cols = [c for c in utc_columns_by_table.get(table_name, []) if c in df.columns]
-        table_details: dict[str, Any] = {}
-        for col in cols:
-            values = pd.to_datetime(df[col], errors="coerce", utc=True)
-            future = int((values > pull_time_utc).sum())
-            total_future += future
-            table_details[col] = {"future_count": future}
-        details["tables"][table_name] = table_details
-    status = "PASS" if total_future == 0 else "WARN"
-    details["future_total"] = total_future
-    return CheckResult(status=status, details=details)
+    comment_author_nonnull = comments["author_id"].notna()
+    agent_ids = set(agents["author_id"].dropna().astype("string"))
+    unresolved_comment_authors = int(
+        (
+            comment_author_nonnull
+            & ~comments["author_id"].astype("string").isin(agent_ids)
+        ).sum()
+    )
+    checked_comment_authors = int(comment_author_nonnull.sum())
+    comment_author_rate = (
+        (checked_comment_authors - unresolved_comment_authors) / checked_comment_authors
+        if checked_comment_authors
+        else None
+    )
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "comment_author_ids_resolve_when_present",
+            "status": _status(
+                violations=0,
+                hard_fail=False,
+                warn_threshold=0.99,
+                rate=comment_author_rate,
+            ),
+            "rows_checked": checked_comment_authors,
+            "violations": unresolved_comment_authors,
+            "resolution_rate": comment_author_rate,
+            "notes": "Null author_id is tolerated; non-null author ids should resolve to agents.",
+        }
+    )
+
+    post_author_nonnull = posts["post_author_id"].notna()
+    unresolved_post_authors = int(
+        (
+            post_author_nonnull
+            & ~posts["post_author_id"].astype("string").isin(agent_ids)
+        ).sum()
+    )
+    checked_post_authors = int(post_author_nonnull.sum())
+    post_author_rate = (
+        (checked_post_authors - unresolved_post_authors) / checked_post_authors
+        if checked_post_authors
+        else None
+    )
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "post_author_ids_resolve_when_present",
+            "status": _status(
+                violations=0,
+                hard_fail=False,
+                warn_threshold=0.99,
+                rate=post_author_rate,
+            ),
+            "rows_checked": checked_post_authors,
+            "violations": unresolved_post_authors,
+            "resolution_rate": post_author_rate,
+            "notes": "Post author resolution is a warning surface rather than a freeze blocker.",
+        }
+    )
+
+    chronology = comments.loc[:, ["comment_id", "parent_comment_id", "thread_id", "created_at_utc"]].copy()
+    chronology = chronology.merge(parent_lookup, on="parent_comment_id", how="left")
+    parent_comparable = chronology["parent_created_at_utc"].notna() & chronology["created_at_utc"].notna()
+    parent_lag_violations = int(
+        (chronology.loc[parent_comparable, "created_at_utc"] < chronology.loc[parent_comparable, "parent_created_at_utc"]).sum()
+    )
+    parent_lag_status = _status(violations=parent_lag_violations, hard_fail=True)
+    hard_fail = hard_fail or parent_lag_status == "FAIL"
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "non_negative_child_parent_lag",
+            "status": parent_lag_status,
+            "rows_checked": int(parent_comparable.sum()),
+            "violations": parent_lag_violations,
+            "resolution_rate": None,
+            "notes": "Negative child-parent lag is a hard fail.",
+        }
+    )
+
+    post_lookup = posts.loc[:, ["thread_id", "post_created_at_utc"]].copy()
+    chronology = chronology.merge(post_lookup, on="thread_id", how="left")
+    post_comparable = chronology["post_created_at_utc"].notna() & chronology["created_at_utc"].notna()
+    post_lag_violations = int(
+        (chronology.loc[post_comparable, "created_at_utc"] < chronology.loc[post_comparable, "post_created_at_utc"]).sum()
+    )
+    post_lag_status = _status(violations=post_lag_violations, hard_fail=True)
+    hard_fail = hard_fail or post_lag_status == "FAIL"
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "non_negative_comment_post_lag",
+            "status": post_lag_status,
+            "rows_checked": int(post_comparable.sum()),
+            "violations": post_lag_violations,
+            "resolution_rate": None,
+            "notes": "Negative comment-post lag is a hard fail.",
+        }
+    )
+
+    parent_map = {
+        str(row.comment_id): str(row.parent_comment_id)
+        for row in comments.loc[
+            comments["comment_id"].notna() & comments["parent_comment_id"].notna(),
+            ["comment_id", "parent_comment_id"],
+        ].itertuples(index=False)
+    }
+    cycle_count = _cycle_count(parent_map)
+    cycle_status = _status(violations=cycle_count, hard_fail=True)
+    hard_fail = hard_fail or cycle_status == "FAIL"
+    linkage_rows.append(
+        {
+            "archive_name": archive_name,
+            "check_name": "parent_graph_cycles",
+            "status": cycle_status,
+            "rows_checked": len(parent_map),
+            "violations": cycle_count,
+            "resolution_rate": None,
+            "notes": "Any cycle in the parent graph is a hard fail.",
+        }
+    )
+
+    return linkage_rows, hard_fail
 
 
-def _dedup_latest_state(
-    df: pd.DataFrame, id_col: str, dump_date_col: str
-) -> tuple[pd.DataFrame, dict[str, Any]]:
-    if df.empty:
-        return df, {"rows_in": 0, "rows_out": 0, "rows_removed": 0}
+def _build_gap_registry(archive_name: str, comments: pd.DataFrame) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    timestamps = (
+        comments["created_at_utc"]
+        .dropna()
+        .sort_values()
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    gap_rows: list[dict[str, Any]] = []
+    severe_rows: list[dict[str, Any]] = []
+    if timestamps.shape[0] < 2:
+        return gap_rows, severe_rows
 
-    work = df.copy()
-    work[dump_date_col] = work[dump_date_col].astype(str)
-    # Lexicographic max works for YYYY-MM-DD.
-    work = work.sort_values([id_col, dump_date_col])
-    latest = work.groupby(id_col, as_index=False).tail(1)
-    removed = int(len(work) - len(latest))
-    return latest, {
-        "rows_in": int(len(work)),
-        "rows_out": int(len(latest)),
-        "rows_removed": removed,
+    previous = timestamps.shift(1)
+    gaps = timestamps - previous
+    for idx in range(1, len(timestamps)):
+        gap = gaps.iloc[idx]
+        if pd.isna(gap):
+            continue
+        gap_hours = float(gap.total_seconds() / 3600.0)
+        if gap_hours <= GAP_LOG_HOURS:
+            continue
+        row = {
+            "archive_name": archive_name,
+            "gap_index": len(gap_rows) + 1,
+            "previous_comment_created_at_utc": previous.iloc[idx].isoformat(),
+            "next_comment_created_at_utc": timestamps.iloc[idx].isoformat(),
+            "gap_seconds": int(gap.total_seconds()),
+            "gap_hours": gap_hours,
+            "severity": "severe" if gap_hours > SEVERE_GAP_HOURS else "logged",
+        }
+        gap_rows.append(row)
+        if row["severity"] == "severe":
+            severe_rows.append(row)
+    return gap_rows, severe_rows
+
+
+def _count_in_gap(frame: pd.DataFrame, timestamp_column: str, start: pd.Timestamp, end: pd.Timestamp) -> int:
+    if frame.empty or timestamp_column not in frame.columns:
+        return 0
+    series = frame[timestamp_column]
+    return int((series.notna() & (series >= start) & (series <= end)).sum())
+
+
+def _build_gap_disambiguation(
+    *,
+    archive_name: str,
+    severe_gaps: list[dict[str, Any]],
+    posts: pd.DataFrame,
+    snapshots: pd.DataFrame,
+    word_frequency: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for gap in severe_gaps:
+        start = pd.Timestamp(gap["previous_comment_created_at_utc"])
+        end = pd.Timestamp(gap["next_comment_created_at_utc"])
+        posts_count = _count_in_gap(posts, "post_created_at_utc", start, end)
+        snapshots_count = _count_in_gap(snapshots, "snapshot_timestamp_utc", start, end)
+        word_frequency_count = _count_in_gap(word_frequency, "hour_utc", start, end)
+        rows.append(
+            {
+                "archive_name": archive_name,
+                "gap_index": gap["gap_index"],
+                "gap_start_utc": start.isoformat(),
+                "gap_end_utc": end.isoformat(),
+                "gap_hours": gap["gap_hours"],
+                "posts_in_gap": posts_count,
+                "snapshots_in_gap": snapshots_count,
+                "word_frequency_records_in_gap": word_frequency_count,
+                "likely_archive_interruption": bool(posts_count or snapshots_count or word_frequency_count),
+            }
+        )
+    return rows
+
+
+def _earliest_reply_metrics(comments: pd.DataFrame) -> dict[str, Any]:
+    parents = comments.loc[comments["comment_id"].notna() & comments["created_at_utc"].notna(), ["comment_id", "created_at_utc"]].copy()
+    parents.rename(columns={"comment_id": "parent_comment_id", "created_at_utc": "parent_created_at_utc"}, inplace=True)
+
+    children = comments.loc[
+        comments["parent_comment_id"].notna() & comments["created_at_utc"].notna(),
+        ["comment_id", "parent_comment_id", "created_at_utc"],
+    ].copy()
+    merged = children.merge(parents, on="parent_comment_id", how="inner")
+    merged["reply_lag_seconds"] = (
+        merged["created_at_utc"] - merged["parent_created_at_utc"]
+    ).dt.total_seconds()
+    merged = merged.loc[merged["reply_lag_seconds"] >= 0].copy()
+
+    first_reply = merged.groupby("parent_comment_id", as_index=False)["reply_lag_seconds"].min()
+    parent_ids = set(parents["parent_comment_id"].astype("string"))
+    replied_ids = set(first_reply["parent_comment_id"].astype("string"))
+    candidate_parent_units = int(parents.shape[0])
+    p_obs = (len(replied_ids) / candidate_parent_units) if candidate_parent_units else None
+    q_5m = (
+        int((first_reply["reply_lag_seconds"] <= 300).sum()) / candidate_parent_units
+        if candidate_parent_units
+        else None
+    )
+    q_1h = (
+        int((first_reply["reply_lag_seconds"] <= 3600).sum()) / candidate_parent_units
+        if candidate_parent_units
+        else None
+    )
+    quantiles = first_reply["reply_lag_seconds"].quantile([0.5, 0.9]) if not first_reply.empty else pd.Series(dtype=float)
+    return {
+        "candidate_parent_units": candidate_parent_units,
+        "ever_replied_units": len(replied_ids),
+        "p_obs": p_obs,
+        "q_5m": q_5m,
+        "q_1h": q_1h,
+        "t50_seconds": float(quantiles.get(0.5)) if 0.5 in quantiles.index else None,
+        "t90_seconds": float(quantiles.get(0.9)) if 0.9 in quantiles.index else None,
+        "reply_lag_rows": int(first_reply.shape[0]),
     }
 
 
-def _write_parquet(df: pd.DataFrame, path: Path) -> None:
+def _benchmark_rows(
+    *,
+    archive_name: str,
+    comments: pd.DataFrame,
+    agents: pd.DataFrame,
+    posts: pd.DataFrame,
+    snapshots: pd.DataFrame,
+    submolts: pd.DataFrame,
+    word_frequency: pd.DataFrame,
+    severe_gaps: list[dict[str, Any]],
+    gap_disambiguation: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str]:
+    metrics = _earliest_reply_metrics(comments)
+    rows: list[dict[str, Any]] = []
+    benchmark_status = "PASS"
+
+    actuals: dict[str, Any] = {
+        "comments_rows": int(comments.shape[0]),
+        "unique_comment_ids": int(comments["comment_id"].dropna().astype("string").nunique()),
+        "candidate_parent_units": int(metrics["candidate_parent_units"]),
+        "missing_author_ids": int(comments["author_id"].isna().sum()),
+        "agents_rows": int(agents.shape[0]),
+        "posts_rows": int(posts.shape[0]),
+        "snapshots_rows": int(snapshots.shape[0]),
+        "submolts_rows": int(submolts.shape[0]),
+        "word_frequency_rows": int(word_frequency.shape[0]),
+        "q_5m": metrics["q_5m"],
+        "q_1h": metrics["q_1h"],
+        "p_obs": metrics["p_obs"],
+        "t50_seconds": metrics["t50_seconds"],
+        "t90_seconds": metrics["t90_seconds"],
+    }
+
+    largest_gap = severe_gaps[0] if severe_gaps else None
+    largest_gap_disambiguation = (
+        next((row for row in gap_disambiguation if row["gap_index"] == largest_gap["gap_index"]), None)
+        if largest_gap is not None
+        else None
+    )
+    if largest_gap is not None:
+        actuals["gap_start"] = largest_gap["previous_comment_created_at_utc"]
+        actuals["gap_end"] = largest_gap["next_comment_created_at_utc"]
+        actuals["gap_hours"] = largest_gap["gap_hours"]
+    if largest_gap_disambiguation is not None:
+        actuals["gap_posts"] = largest_gap_disambiguation["posts_in_gap"]
+        actuals["gap_snapshots"] = largest_gap_disambiguation["snapshots_in_gap"]
+        actuals["gap_word_frequency"] = largest_gap_disambiguation["word_frequency_records_in_gap"]
+
+    benchmarks = SIMULAMET_BENCHMARKS if archive_name == "simulamet" else {}
+    for metric_name, actual in actuals.items():
+        expected = benchmarks.get(metric_name)
+        tolerance = 0.0
+        status = "INFO"
+        if expected is not None:
+            if isinstance(expected, float):
+                tolerance = 0.005 if metric_name.startswith("q_") or metric_name == "p_obs" else 1.0
+                status = "PASS" if actual is not None and abs(float(actual) - expected) <= tolerance else "FAIL"
+            else:
+                status = "PASS" if actual == expected else "FAIL"
+            if status == "FAIL":
+                benchmark_status = "FAIL"
+        rows.append(
+            {
+                "metric_name": metric_name,
+                "actual": actual,
+                "expected": expected,
+                "tolerance": tolerance if expected is not None else None,
+                "status": status,
+            }
+        )
+
+    return rows, benchmark_status
+
+
+def _qc_summary_status(linkage_rows: list[dict[str, Any]], benchmark_status: str) -> str:
+    if any(row["status"] == "FAIL" for row in linkage_rows):
+        return "FAIL"
+    if benchmark_status == "FAIL":
+        return "FAIL"
+    if any(row["status"] == "WARN" for row in linkage_rows):
+        return "WARN"
+    return "PASS"
+
+
+def _write_benchmark_report(
+    *,
+    path: Path,
+    archive_name: str,
+    benchmark_rows: list[dict[str, Any]],
+    overall_status: str,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, path)
+    contents = [
+        f"# Benchmark Report: {archive_name}",
+        "",
+        f"- Generated at UTC: {_utc_now_iso()}",
+        f"- Overall status: {overall_status}",
+        "",
+        _markdown_table(
+            benchmark_rows,
+            [
+                ("metric_name", "Metric"),
+                ("actual", "Actual"),
+                ("expected", "Expected"),
+                ("tolerance", "Tolerance"),
+                ("status", "Status"),
+            ],
+        ),
+        "",
+    ]
+    path.write_text("\n".join(contents), encoding="utf-8")
+
+
+def _write_qc_report(
+    *,
+    path: Path,
+    archive_name: str,
+    overall_status: str,
+    linkage_rows: list[dict[str, Any]],
+    gap_rows: list[dict[str, Any]],
+    severe_gap_rows: list[dict[str, Any]],
+    benchmark_rows: list[dict[str, Any]],
+    benchmark_report_path: Path,
+    linkage_path: Path,
+    gap_registry_path: Path,
+    gap_disambiguation_path: Path,
+    exclusion_path: Path,
+    manual_override_path: Path,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        f"# Archive QC Report: {archive_name}",
+        "",
+        f"- Generated at UTC: {_utc_now_iso()}",
+        f"- Overall status: {overall_status}",
+        f"- Linkage audit: {linkage_path}",
+        f"- Gap registry: {gap_registry_path}",
+        f"- Gap disambiguation: {gap_disambiguation_path}",
+        f"- Benchmark report: {benchmark_report_path}",
+        f"- Exclusion log: {exclusion_path}",
+        f"- Manual override log: {manual_override_path}",
+        "",
+        "## Linkage Summary",
+        "",
+        _markdown_table(
+            linkage_rows,
+            [
+                ("check_name", "Check"),
+                ("status", "Status"),
+                ("rows_checked", "Rows Checked"),
+                ("violations", "Violations"),
+                ("resolution_rate", "Resolution Rate"),
+                ("notes", "Notes"),
+            ],
+        ),
+        "",
+        "## Gap Summary",
+        "",
+        f"- Logged gaps > 6h: {len(gap_rows)}",
+        f"- Severe gaps > 24h: {len(severe_gap_rows)}",
+        "",
+        "## Benchmark Summary",
+        "",
+        _markdown_table(
+            benchmark_rows,
+            [
+                ("metric_name", "Metric"),
+                ("actual", "Actual"),
+                ("expected", "Expected"),
+                ("status", "Status"),
+            ],
+        ),
+        "",
+        "## Sign-off",
+        "",
+        "- Data Acquisition Lead: pending",
+        "- QA Lead: pending",
+        "- PI: pending",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run A.5 QC checks on curated HF archive data.")
-    parser.add_argument("--curated-dir", type=Path, required=True)
-    parser.add_argument("--schema-mapping", type=Path, required=True)
-    parser.add_argument("--out", type=Path, required=True, help="Output path for qc_results.json")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate a canonical archive freeze, emit the tracked QC packet, and hard-fail "
+            "when linkage or benchmark checks do not meet flagship requirements."
+        )
+    )
+    parser.add_argument("--freeze-root", type=Path, required=True, help="Freeze root containing canonical parquet tables.")
+    parser.add_argument("--archive-name", default="simulamet", help="Archive label for QC outputs.")
+    parser.add_argument("--out-linkage-audit", type=Path, required=True, help="Output CSV path for linkage audit.")
+    parser.add_argument("--out-gap-registry", type=Path, required=True, help="Output CSV path for gap registry.")
+    parser.add_argument(
+        "--out-gap-disambiguation",
+        type=Path,
+        required=True,
+        help="Output CSV path for severe-gap disambiguation.",
+    )
+    parser.add_argument("--out-benchmark-report", type=Path, required=True, help="Output markdown path for benchmark report.")
+    parser.add_argument("--out-qc-report", type=Path, required=True, help="Output markdown path for the QC packet.")
+    parser.add_argument("--out-exclusion-log", type=Path, required=True, help="Output CSV path for explicit exclusions.")
+    parser.add_argument(
+        "--out-manual-override-log",
+        type=Path,
+        required=True,
+        help="Output CSV path for manual overrides.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    curated_dir: Path = args.curated_dir
-    schema_mapping = _load_json(args.schema_mapping)
+    archive_name = str(args.archive_name).strip().lower()
 
-    pull_info = _infer_pull_time(args.out, curated_dir)
-    pull_time = pd.to_datetime(pull_info["pull_time_utc"], utc=True)
+    comments = _load_frame(args.freeze_root, "comments")
+    posts = _load_frame(args.freeze_root, "posts")
+    agents = _load_frame(args.freeze_root, "agents")
+    snapshots = _load_frame(args.freeze_root, "snapshots")
+    submolts = _load_frame(args.freeze_root, "submolts")
+    word_frequency = _load_frame(args.freeze_root, "word_frequency")
 
-    # Load only the columns required for checks.
-    agents = _read_dataset(
-        curated_dir,
-        "agents",
-        columns=[
-            "id",
-            "dump_date",
-            "first_seen_at_raw",
-            "first_seen_at_utc",
-            "last_seen_at_raw",
-            "last_seen_at_utc",
-            "created_at_raw",
-            "created_at_utc",
-        ],
+    if comments.empty or posts.empty:
+        raise SystemExit("freeze_root_missing_core_tables:comments_or_posts")
+
+    _check_required_columns(comments, "comments", ["comment_id", "thread_id", "parent_comment_id", "author_id", "created_at_utc"])
+    _check_required_columns(posts, "posts", ["thread_id", "post_author_id", "community_label", "post_created_at_utc"])
+    _check_required_columns(agents, "agents", ["author_id"])
+
+    comments = comments.copy()
+    posts = posts.copy()
+    agents = agents.copy()
+    snapshots = snapshots.copy()
+    submolts = submolts.copy()
+    word_frequency = word_frequency.copy()
+
+    comments["created_at_utc"] = _coerce_timestamp(comments.get("created_at_utc"))
+    posts["post_created_at_utc"] = _coerce_timestamp(posts.get("post_created_at_utc"))
+    snapshots["snapshot_timestamp_utc"] = _coerce_timestamp(snapshots.get("snapshot_timestamp_utc"))
+    word_frequency["hour_utc"] = _coerce_timestamp(word_frequency.get("hour_utc"))
+
+    linkage_rows, linkage_hard_fail = _build_linkage_audit(
+        archive_name=archive_name,
+        comments=comments,
+        posts=posts,
+        agents=agents,
     )
-    posts = _read_dataset(
-        curated_dir,
-        "posts",
-        columns=[
-            "id",
-            "dump_date",
-            "agent_id",
-            "created_at_raw",
-            "created_at_utc",
-        ],
+    gap_rows, severe_gap_rows = _build_gap_registry(archive_name, comments)
+    gap_disambiguation_rows = _build_gap_disambiguation(
+        archive_name=archive_name,
+        severe_gaps=severe_gap_rows,
+        posts=posts,
+        snapshots=snapshots,
+        word_frequency=word_frequency,
     )
-    comments = _read_dataset(
-        curated_dir,
-        "comments",
-        columns=[
-            "id",
-            "dump_date",
-            "post_id",
-            "parent_id",
-            "agent_id",
-            "created_at_raw",
-            "created_at_utc",
-        ],
+    benchmark_rows, benchmark_status = _benchmark_rows(
+        archive_name=archive_name,
+        comments=comments,
+        agents=agents,
+        posts=posts,
+        snapshots=snapshots,
+        submolts=submolts,
+        word_frequency=word_frequency,
+        severe_gaps=severe_gap_rows,
+        gap_disambiguation=gap_disambiguation_rows,
+    )
+    overall_status = _qc_summary_status(linkage_rows, benchmark_status)
+
+    linkage_columns = [
+        "archive_name",
+        "check_name",
+        "status",
+        "rows_checked",
+        "violations",
+        "resolution_rate",
+        "notes",
+    ]
+    gap_columns = [
+        "archive_name",
+        "gap_index",
+        "previous_comment_created_at_utc",
+        "next_comment_created_at_utc",
+        "gap_seconds",
+        "gap_hours",
+        "severity",
+    ]
+    gap_disambiguation_columns = [
+        "archive_name",
+        "gap_index",
+        "gap_start_utc",
+        "gap_end_utc",
+        "gap_hours",
+        "posts_in_gap",
+        "snapshots_in_gap",
+        "word_frequency_records_in_gap",
+        "likely_archive_interruption",
+    ]
+
+    _write_csv(args.out_linkage_audit, linkage_rows, linkage_columns)
+    _write_csv(args.out_gap_registry, gap_rows, gap_columns)
+    _write_csv(args.out_gap_disambiguation, gap_disambiguation_rows, gap_disambiguation_columns)
+    _write_csv(args.out_exclusion_log, [], EMPTY_EXCLUSION_COLUMNS)
+    _write_csv(args.out_manual_override_log, [], EMPTY_OVERRIDE_COLUMNS)
+    _write_benchmark_report(
+        path=args.out_benchmark_report,
+        archive_name=archive_name,
+        benchmark_rows=benchmark_rows,
+        overall_status=benchmark_status,
+    )
+    _write_qc_report(
+        path=args.out_qc_report,
+        archive_name=archive_name,
+        overall_status=overall_status,
+        linkage_rows=linkage_rows,
+        gap_rows=gap_rows,
+        severe_gap_rows=severe_gap_rows,
+        benchmark_rows=benchmark_rows,
+        benchmark_report_path=args.out_benchmark_report,
+        linkage_path=args.out_linkage_audit,
+        gap_registry_path=args.out_gap_registry,
+        gap_disambiguation_path=args.out_gap_disambiguation,
+        exclusion_path=args.out_exclusion_log,
+        manual_override_path=args.out_manual_override_log,
     )
 
-    checks: dict[str, Any] = {}
-
-    uniq_agents = _uniqueness_by_day(agents, id_col="id", day_col="dump_date")
-    uniq_posts = _uniqueness_by_day(posts, id_col="id", day_col="dump_date")
-    uniq_comments = _uniqueness_by_day(comments, id_col="id", day_col="dump_date")
-    checks["uniqueness_by_day"] = {
-        "status": (
-            "PASS"
-            if all(r.status == "PASS" for r in [uniq_agents, uniq_posts, uniq_comments])
-            else "WARN"
-        ),
-        "tables": {
-            "agents": uniq_agents.details,
-            "posts": uniq_posts.details,
-            "comments": uniq_comments.details,
+    summary = {
+        "archive_name": archive_name,
+        "overall_status": overall_status,
+        "linkage_hard_fail": linkage_hard_fail,
+        "benchmark_status": benchmark_status,
+        "gap_count": len(gap_rows),
+        "severe_gap_count": len(severe_gap_rows),
+        "outputs": {
+            "linkage_audit": str(args.out_linkage_audit),
+            "gap_registry": str(args.out_gap_registry),
+            "gap_disambiguation": str(args.out_gap_disambiguation),
+            "benchmark_report": str(args.out_benchmark_report),
+            "qc_report": str(args.out_qc_report),
+            "exclusion_log": str(args.out_exclusion_log),
+            "manual_override_log": str(args.out_manual_override_log),
         },
     }
+    print(json.dumps(summary, indent=2, sort_keys=True))
 
-    parse_stats: dict[str, Any] = {"tables": {}}
-    for table_name, df, pairs in [
-        (
-            "agents",
-            agents,
-            [
-                ("first_seen_at_raw", "first_seen_at_utc"),
-                ("last_seen_at_raw", "last_seen_at_utc"),
-                ("created_at_raw", "created_at_utc"),
-            ],
-        ),
-        ("posts", posts, [("created_at_raw", "created_at_utc")]),
-        ("comments", comments, [("created_at_raw", "created_at_utc")]),
-    ]:
-        table_stats: dict[str, Any] = {}
-        table_status = "PASS"
-        for raw_col, utc_col in pairs:
-            stat = _timestamp_parse_rate(df, raw_col=raw_col, utc_col=utc_col)
-            table_stats[utc_col] = stat
-            status = _status_from_rate(stat.get("parse_rate"))
-            if status == "FAIL":
-                table_status = "FAIL"
-            elif status == "WARN" and table_status != "FAIL":
-                table_status = "WARN"
-        parse_stats["tables"][table_name] = {"status": table_status, "columns": table_stats}
-
-    parse_stats["status"] = (
-        "FAIL"
-        if any(t["status"] == "FAIL" for t in parse_stats["tables"].values())
-        else (
-            "WARN"
-            if any(t["status"] == "WARN" for t in parse_stats["tables"].values())
-            else "PASS"
-        )
-    )
-    checks["timestamp_parse_rate"] = parse_stats
-
-    ref = _referential_integrity(comments=comments, posts=posts, agents=agents)
-    checks["referential_integrity"] = {"status": ref.status, "details": ref.details}
-
-    mono = _monotonicity_agents(agents)
-    checks["monotonicity"] = {"status": mono.status, "details": mono.details}
-
-    future = _future_timestamps(
-        tables={"agents": agents, "posts": posts, "comments": comments},
-        pull_time_utc=pull_time,
-        utc_columns_by_table={
-            "agents": ["first_seen_at_utc", "last_seen_at_utc", "created_at_utc"],
-            "posts": ["created_at_utc"],
-            "comments": ["created_at_utc"],
-        },
-    )
-    checks["future_timestamps"] = {"status": future.status, "details": future.details}
-
-    canonical_dir = curated_dir / "canonical"
-    canonical: dict[str, Any] = {"out_dir": str(canonical_dir), "tables": {}}
-
-    for name, df in [("posts", posts), ("comments", comments), ("agents", agents)]:
-        latest, stats = _dedup_latest_state(df, id_col="id", dump_date_col="dump_date")
-        out_path = canonical_dir / f"{name}_latest.parquet"
-        _write_parquet(latest, out_path)
-        canonical["tables"][name] = {"latest_path": str(out_path), **stats}
-
-    canonical_status = "PASS"
-    checks["backfill_dedup"] = {"status": canonical_status, "details": canonical}
-
-    # Provide mapping provenance summary.
-    mapping_missing: dict[str, Any] = {
-        t: schema_mapping.get("tables", {}).get(t, {}).get("summary", {}).get("missing_required")
-        for t in DEFAULT_SUBSETS
-        if t in schema_mapping.get("tables", {})
-    }
-
-    summary_counts = {"PASS": 0, "WARN": 0, "FAIL": 0}
-    for check in checks.values():
-        status = check.get("status", "WARN")
-        summary_counts[status] = summary_counts.get(status, 0) + 1
-
-    qc_results: dict[str, Any] = {
-        "generated_at_utc": _utc_now_iso(),
-        "curated_dir": str(curated_dir),
-        "pull_time": pull_info,
-        "schema_mapping_path": str(args.schema_mapping),
-        "schema_mapping_missing_required": mapping_missing,
-        "checks": checks,
-        "summary": summary_counts,
-    }
-
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(qc_results, indent=2, sort_keys=True) + "\n")
+    if overall_status == "FAIL":
+        raise SystemExit("archive_qc_failed")
 
 
 if __name__ == "__main__":

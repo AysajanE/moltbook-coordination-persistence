@@ -14,8 +14,9 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "qc/"
+  - "analysis/flagship_control_panel_margins.py"
+  - "analysis/incidence_horizon_standardization.py"
+  - "qc/analysis_execution_simulamet.md"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -75,9 +76,10 @@ Once the canonical tables and rewritten scripts exist, the flagship repo can gen
 
 ## Validation / Commands
 
+- `python analysis/flagship_control_panel_margins.py --control-panel derived/control_panel_summary_simulamet.parquet --out qc/analysis_execution_simulamet.md`
+- `python analysis/incidence_horizon_standardization.py --parent-units derived/parent_units_simulamet.parquet --append-report qc/analysis_execution_simulamet.md`
 - `make gate`
 - `make test`
-- Add task-specific analysis commands here.
 
 ## Status
 

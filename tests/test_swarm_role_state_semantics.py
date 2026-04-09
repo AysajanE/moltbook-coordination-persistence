@@ -1,8 +1,11 @@
+import argparse
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
-from runtime_test_utils import load_swarm_module, load_sweep_module, scaffold_runtime_repo, write_task
+from runtime_test_utils import chdir, load_swarm_module, load_sweep_module, scaffold_runtime_repo, write_task
 
 
 swarm = load_swarm_module()
@@ -131,6 +134,66 @@ class SwarmRoleStateSemanticsTest(unittest.TestCase):
             source, target = moves[0]
             self.assertEqual(source, task_path)
             self.assertEqual(target.parent.name, "ready_for_review")
+
+    def test_cmd_run_task_refuses_unsatisfied_dependencies(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scaffold_runtime_repo(root)
+
+            write_task(
+                root,
+                "backlog",
+                "T150",
+                workstream="W1",
+                task_kind="acquisition",
+                role="Worker",
+                allow_network=True,
+                allowed_paths=["raw/"],
+                disallowed_paths=["contracts/"],
+                outputs=["raw/simulamet/2026-04-08/..."],
+                state="backlog",
+                slug="dependency-source",
+                validation_commands=["`make gate`", "`make test`"],
+            )
+            write_task(
+                root,
+                "backlog",
+                "T151",
+                workstream="W2",
+                task_kind="freeze_qc",
+                role="Worker",
+                dependencies=["T150"],
+                allowed_paths=["qc/linkage_audit_simulamet.csv"],
+                disallowed_paths=["contracts/"],
+                outputs=["qc/linkage_audit_simulamet.csv"],
+                state="backlog",
+                slug="dependency-target",
+                validation_commands=["`make gate`", "`make test`"],
+            )
+
+            args = argparse.Namespace(
+                task_id="T151",
+                unattended=False,
+                remote="origin",
+                create_pr=False,
+                final_state="ready_for_review",
+                skip_executor=True,
+                repair_context=None,
+                codex_model="gpt-5",
+                codex_sandbox="workspace-write",
+                max_worker_seconds=0,
+                base_branch="main",
+            )
+
+            with chdir(root):
+                swarm._REPO_ROOT_CACHE = None
+                with mock.patch.dict(os.environ, {"SWARM_REPO_ROOT": str(root)}), mock.patch.object(
+                    swarm, "_require_git_identity"
+                ), mock.patch.object(swarm, "_preflight_strict_sync_requirements"):
+                    with self.assertRaises(SystemExit) as ctx:
+                        swarm.cmd_run_task(args)
+
+            self.assertIn("preflight_failed:unsatisfied_dependencies:T150", str(ctx.exception))
 
 
 if __name__ == "__main__":

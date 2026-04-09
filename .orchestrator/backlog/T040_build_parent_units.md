@@ -14,8 +14,8 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "derived/"
+  - "analysis/build_parent_units.py"
+  - "derived/parent_units_simulamet.parquet"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -75,9 +75,9 @@ stop_conditions:
 
 ## Validation / Commands
 
+- `python analysis/build_parent_units.py --freeze-root frozen/simulamet_firstweek_lateststate --qc-report qc/archive_qc_report_simulamet.md --out derived/parent_units_simulamet.parquet`
 - `make gate`
 - `make test`
-- Add task-specific derived-table commands here.
 
 ## Status
 

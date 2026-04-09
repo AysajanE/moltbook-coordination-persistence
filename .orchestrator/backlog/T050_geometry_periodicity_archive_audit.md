@@ -14,8 +14,13 @@ requires_tools:
   - "git"
 requires_env: []
 allowed_paths:
-  - "analysis/"
-  - "derived/"
+  - "analysis/build_thread_geometry.py"
+  - "analysis/build_periodicity_input.py"
+  - "analysis/build_archive_metadata_audit.py"
+  - "derived/thread_geometry_simulamet.parquet"
+  - "derived/periodicity_input_simulamet.parquet"
+  - "derived/archive_metadata_audit.parquet"
+  - "derived/submolt_category_dictionary_v1.csv"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -78,9 +83,11 @@ The flagship design requires thread geometry, periodicity inputs, archive metada
 
 ## Validation / Commands
 
+- `python analysis/build_thread_geometry.py --freeze-root frozen/simulamet_firstweek_lateststate --out derived/thread_geometry_simulamet.parquet`
+- `python analysis/build_periodicity_input.py --freeze-root frozen/simulamet_firstweek_lateststate --out derived/periodicity_input_simulamet.parquet`
+- `python analysis/build_archive_metadata_audit.py --raw-manifest manifests/simulamet_manifest.yaml --freeze-manifest manifests/simulamet_firstweek_freeze_manifest.json --qc-report qc/archive_qc_report_simulamet.md --out derived/archive_metadata_audit.parquet --topic-dictionary-out derived/submolt_category_dictionary_v1.csv`
 - `make gate`
 - `make test`
-- Add task-specific geometry and audit commands here.
 
 ## Status
 

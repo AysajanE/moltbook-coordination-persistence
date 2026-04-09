@@ -118,6 +118,60 @@ class JudgeOperatorGateTest(unittest.TestCase):
             self.assertTrue(valid_review.ok, valid_review.details)
             self.assertTrue(valid_bundle.ok, valid_bundle.details)
 
+    def test_done_task_requires_approval_review_log_not_just_schema_valid_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scaffold_runtime_repo(root)
+
+            output_path = "docs/runbook_swarm.md"
+            write_text(root, output_path, "# runbook\n")
+
+            task_path = write_task(
+                root,
+                "done",
+                "T402",
+                workstream="W9",
+                task_kind="ops",
+                role="Operator",
+                allowed_paths=["docs/runbook_swarm.md"],
+                disallowed_paths=["contracts/"],
+                outputs=[output_path],
+                state="done",
+                slug="approval",
+            )
+
+            run_manifest_path = write_run_manifest(
+                root,
+                "T402",
+                task_path=task_path.relative_to(root).as_posix(),
+                task_role="Operator",
+                workstream="W9",
+                state_after="ready_for_review",
+            )
+
+            write_review_log(
+                root,
+                "T402",
+                task_path=task_path.relative_to(root).as_posix(),
+                run_manifest_path=run_manifest_path.relative_to(root).as_posix(),
+                reviewer_role="Judge",
+                outcome="revise",
+                state_after="blocked",
+            )
+
+            with chdir(root):
+                schema_valid = quality_gates.gate_judge_review_log_validity()
+                bundle_valid = quality_gates.gate_review_bundle_integrity()
+
+            self.assertTrue(schema_valid.ok, schema_valid.details)
+            self.assertFalse(bundle_valid.ok)
+            self.assertTrue(
+                any(
+                    "missing_approval_review_log" in failure
+                    for failure in (bundle_valid.details.get("failures") or [])
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

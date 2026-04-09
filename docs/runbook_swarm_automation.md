@@ -25,3 +25,9 @@ This repo currently uses a manual Operator loop. The automation layer is intenti
 - Use `python scripts/swarm.py run-task` and `python scripts/swarm.py judge-task` for task-local execution and review when appropriate.
 - Keep Operator review between task completion and merge.
 - Do not introduce pilot-repo release assumptions until a dedicated W9 task does so explicitly.
+
+## Rollback expectations
+
+- Automation does not supersede the authoritative task state. Correct `State:` first, then reconcile folder projection.
+- Invalid run manifests or review logs should not be deleted silently; supersede them with corrected artifacts and note the reason in the task file.
+- If an automated run branches from the wrong base or lands invalid work, stop the loop, revert the merge if needed, clean the affected worktree, and restart from a synchronized base branch.

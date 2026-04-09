@@ -16,8 +16,9 @@ requires_tools:
 requires_env: []
 allowed_paths:
   - "analysis/hf_archive_curate.py"
-  - "frozen/"
-  - "qc/"
+  - "frozen/simulamet_firstweek_lateststate/"
+  - "qc/simulamet_dedup_conflicts.csv"
+  - "manifests/simulamet_firstweek_freeze_manifest.json"
 disallowed_paths:
   - "README.md"
   - "docs/swarm_deployment_plan.md"
@@ -27,6 +28,7 @@ disallowed_paths:
 outputs:
   - "frozen/simulamet_firstweek_lateststate/..."
   - "qc/simulamet_dedup_conflicts.csv"
+  - "manifests/simulamet_firstweek_freeze_manifest.json"
 gates:
   - "make gate"
   - "make test"
@@ -77,9 +79,9 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 
 ## Validation / Commands
 
+- `python analysis/hf_archive_curate.py --raw-manifest manifests/simulamet_manifest.yaml --schema-crosswalk manifests/schema_crosswalk.yaml --archive-name simulamet --out-root frozen/simulamet_firstweek_lateststate --window-start 2026-01-28T00:00:00Z --window-end 2026-02-05T00:00:00Z --dedup-conflicts-out qc/simulamet_dedup_conflicts.csv --freeze-manifest-out manifests/simulamet_firstweek_freeze_manifest.json`
 - `make gate`
 - `make test`
-- Add task-specific freeze commands here.
 
 ## Status
 
