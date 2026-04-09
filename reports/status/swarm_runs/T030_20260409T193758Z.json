@@ -1,0 +1,139 @@
+{
+  "artifacts": {
+    "freshness": [
+      {
+        "fresh_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/frozen/simulamet_firstweek_lateststate"
+        ],
+        "matched_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/frozen/simulamet_firstweek_lateststate"
+        ],
+        "output": "frozen/simulamet_firstweek_lateststate/..."
+      },
+      {
+        "fresh_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/qc/simulamet_dedup_conflicts.csv"
+        ],
+        "matched_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/qc/simulamet_dedup_conflicts.csv"
+        ],
+        "output": "qc/simulamet_dedup_conflicts.csv"
+      },
+      {
+        "fresh_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/manifests/simulamet_firstweek_freeze_manifest.json"
+        ],
+        "matched_paths": [
+          "/Users/aeziz-local/Research/swarm-worktrees/wt-T030/manifests/simulamet_firstweek_freeze_manifest.json"
+        ],
+        "output": "manifests/simulamet_firstweek_freeze_manifest.json"
+      }
+    ],
+    "freshness_ok": true,
+    "missing_manifests": [],
+    "missing_outputs": [],
+    "outputs_ok": true,
+    "required_manifests_ok": true,
+    "run_manifest_path": "reports/status/swarm_runs/T030_20260409T193758Z.json",
+    "stale_outputs": []
+  },
+  "commands": {
+    "executor": [
+      "/Users/aeziz-local/.nvm/versions/node/v20.19.0/bin/codex",
+      "exec",
+      "--sandbox",
+      "danger-full-access",
+      "-C",
+      "/Users/aeziz-local/Research/swarm-worktrees/wt-T030",
+      "# Prompt Template \u2014 Worker\n\nRole: **Worker**\n\nYou execute exactly one assigned task in an isolated branch or worktree.\n\n## Instructions\n\n1. Read and follow `AGENTS.md` and any nested `AGENTS.md` under your working directory.\n2. Open the assigned task file and obey its `allowed_paths`, `disallowed_paths`, declared outputs, gates, and stop conditions.\n3. Use source precedence:\n   - `README.md`\n   - `contracts/project.yaml`, `contracts/framework.json`, and related files under `contracts/`\n   - locked paper sections under `paper/sections/`\n   - `.orchestrator/workstreams.md`\n   - the assigned task file\n   - `.orchestrator/handoff/`\n4. Do not coordinate with other agents through chat. Use:\n   - the task file `## Notes / Decisions`\n   - a handoff note under `.orchestrator/handoff/` when downstream tasks need durable guidance\n5. Update only the task file sections:\n   - `## Status`\n   - `## Notes / Decisions`\n   Do not move task files between lifecycle folders.\n6. You may set `State: integration_ready` or `State: ready_for_review` when the task contract permits it. You may never set `State: done`.\n7. Do not treat provisional legacy analysis scripts as authority. If they disagree with the public repo materials or require unpublished internal guidance, stop.\n8. Do not hand-edit `reports/status/` JSON artifacts. Those are runtime-owned surfaces.\n9. If the run is not using the local swarm runtime, hand the exact commands, outputs, and assumptions to Operator so a durable run manifest can be recorded before review.\n\n## Completion checklist\n\n- Run the declared gates and task-specific commands.\n- Ensure declared outputs exist at the declared paths.\n- Record reproduction commands, assumptions, and limitations in the task notes.\n- Write a handoff note if downstream work depends on your output.\n\n## Runtime context (auto-filled)\n\n- Repo root: `/Users/aeziz-local/Research/swarm-worktrees/wt-T030`\n- Task path: `.orchestrator/backlog/T030_build_simulamet_firstweek_freeze.md`\n- Task id: `T030`\n- Workstream: `W2`\n- Task kind: `freeze_qc`\n- Network enabled: `false`\n- Repair context: ``\n\n### Allowed paths\n\n- analysis/hf_archive_curate.py\n- frozen/simulamet_firstweek_lateststate/\n- qc/simulamet_dedup_conflicts.csv\n- manifests/simulamet_firstweek_freeze_manifest.json\n\n### Disallowed paths\n\n- README.md\n- docs/swarm_deployment_plan.md\n- contracts/\n- paper/\n- derived/\n\n### Declared outputs\n\n- frozen/simulamet_firstweek_lateststate/...\n- qc/simulamet_dedup_conflicts.csv\n- manifests/simulamet_firstweek_freeze_manifest.json\n\n### Gates\n\n- make gate\n- make test\n\n### Stop conditions\n\n- Stage 3 authority ambiguity\n- Need to edit outside allowed paths\n"
+    ],
+    "executor_log_path": ".orchestrator/runtime_logs/T030_20260409T193758Z_executor.log",
+    "gates": [
+      "make gate",
+      "make test"
+    ]
+  },
+  "executor": {
+    "allow_network": false,
+    "error": null,
+    "model": null,
+    "repair_context": null,
+    "returncode": 0,
+    "role": "Worker",
+    "runner": "local_swarm",
+    "sandbox": "danger-full-access",
+    "tool": "codex"
+  },
+  "gates": [
+    {
+      "command": "make gate",
+      "output_tail": "python scripts/quality_gates.py\n[framework_contract] ok=True details={'failures': []}\n[repo_structure] ok=True details={'missing': []}\n[project_contract] ok=True details={'failures': []}\n[authority_sources] ok=True details={'failures': []}\n[workstreams_complete] ok=True details={'failures': []}\n[task_hygiene] ok=True details={'failures': []}\n[task_dependencies] ok=True details={'failures': []}\n[integration_ready_policy] ok=True details={'failures': []}\n[workstream_path_ownership] ok=True details={'failures': []}\n[operator_surface_ownership] ok=True details={'failures': []}\n[swarm_run_manifest_validity] ok=True details={'failures': []}\n[judge_review_log_validity] ok=True details={'failures': []}\n[review_bundle_integrity] ok=True details={'failures': []}\n",
+      "returncode": 0
+    },
+    {
+      "command": "make test",
+      "output_tail": "python -m unittest discover -s tests\n.........................\n----------------------------------------------------------------------\nRan 25 tests in 8.138s\n\nOK\n",
+      "returncode": 0
+    }
+  ],
+  "generated_at_utc": "2026-04-09T19:42:50Z",
+  "ownership": {
+    "changed_paths": [
+      ".orchestrator/backlog/T030_build_simulamet_firstweek_freeze.md",
+      ".orchestrator/handoff/H_T030_simulamet_firstweek_freeze.md",
+      "analysis/hf_archive_curate.py",
+      "manifests/simulamet_firstweek_freeze_manifest.json",
+      "qc/simulamet_dedup_conflicts.csv"
+    ],
+    "ok": true,
+    "violations": []
+  },
+  "preflight": {
+    "commands": [
+      {
+        "command": "make gate",
+        "output_tail": "python scripts/quality_gates.py\n[framework_contract] ok=True details={'failures': []}\n[repo_structure] ok=True details={'missing': []}\n[project_contract] ok=True details={'failures': []}\n[authority_sources] ok=True details={'failures': []}\n[workstreams_complete] ok=True details={'failures': []}\n[task_hygiene] ok=True details={'failures': []}\n[task_dependencies] ok=True details={'failures': []}\n[integration_ready_policy] ok=True details={'failures': []}\n[workstream_path_ownership] ok=True details={'failures': []}\n[operator_surface_ownership] ok=True details={'failures': []}\n[swarm_run_manifest_validity] ok=True details={'failures': []}\n[judge_review_log_validity] ok=True details={'failures': []}\n[review_bundle_integrity] ok=True details={'failures': []}\n",
+        "returncode": 0
+      },
+      {
+        "command": "make test",
+        "output_tail": "python -m unittest discover -s tests\n.........................\n----------------------------------------------------------------------\nRan 25 tests in 7.922s\n\nOK\n",
+        "returncode": 0
+      }
+    ],
+    "commands_ok": true,
+    "dependencies_ok": true,
+    "dependency_failures": [],
+    "missing_env": [],
+    "missing_tools": [],
+    "required_env_ok": true,
+    "required_tools_ok": true
+  },
+  "repo": {
+    "base_branch": "main",
+    "branch": "T030_build_simulamet_firstweek_freeze",
+    "git_sha": "54974b804f5641ae84107b8dde64e8bcca64f75e",
+    "remote": "origin"
+  },
+  "result": {
+    "blocked_reasons": [],
+    "status": "ok"
+  },
+  "run_id": "T030_20260409T193758Z",
+  "schema_version": "research_swarm.runtime_run_manifest.v1",
+  "task": {
+    "dependencies": [
+      "T020",
+      "T025"
+    ],
+    "integration_ready_dependencies": [],
+    "role": "Worker",
+    "state_after": "ready_for_review",
+    "state_before": "backlog",
+    "task_id": "T030",
+    "task_kind": "freeze_qc",
+    "task_path": ".orchestrator/backlog/T030_build_simulamet_firstweek_freeze.md",
+    "title": "Construct SimulaMet first-week latest-state freeze",
+    "workstream": "W2"
+  }
+}

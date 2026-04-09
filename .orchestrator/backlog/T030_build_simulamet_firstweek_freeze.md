@@ -84,9 +84,16 @@ The canonical analysis window requires a fresh first-week latest-state freeze bu
 - `make test`
 
 ## Status
-- State: active
+- State: ready_for_review
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
 - 2026-04-09: Claimed by local swarm runtime on branch T030_build_simulamet_firstweek_freeze.
+- 2026-04-09: Updated `analysis/hf_archive_curate.py` so the freeze builder resolves both manifest subset layouts (`splits` and `files`) and loads per-file parquet snapshots through pandas concatenation before canonical coercion. This avoids the manifest-v3 path mismatch and the raw Arrow schema drift observed in SimulaMet comments.
+- 2026-04-09: Ran `python analysis/hf_archive_curate.py --raw-manifest manifests/simulamet_manifest.yaml --schema-crosswalk manifests/schema_crosswalk.yaml --archive-name simulamet --out-root frozen/simulamet_firstweek_lateststate --window-start 2026-01-28T00:00:00Z --window-end 2026-02-05T00:00:00Z --dedup-conflicts-out qc/simulamet_dedup_conflicts.csv --freeze-manifest-out manifests/simulamet_firstweek_freeze_manifest.json` and produced the declared outputs. Freeze manifest row counts: `agents=9794`, `comments=3084`, `posts=23751`, `snapshots=119`, `submolts=638`, `word_frequency=15944`.
+- 2026-04-09: Verified the windowed outputs after materialization. `posts` span `2026-01-28T19:41:46.698141+00:00` to `2026-02-04T16:59:21.149510+00:00`; `comments` span `2026-01-31T07:46:02.546988+00:00` to `2026-02-04T23:23:58.384000+00:00`; `snapshots` span `2026-01-30T21:37:46.238243+00:00` to `2026-02-04T23:53:58.343486+00:00`; `word_frequency` spans `2026-01-30T20:00:00+00:00` to `2026-02-04T23:00:00+00:00`.
+- 2026-04-09: `qc/simulamet_dedup_conflicts.csv` contains `1260` `same_snapshot_conflict` rows, all in the `snapshots` subset. No same-snapshot conflicts were emitted for `comments`, `posts`, `agents`, `submolts`, or `word_frequency`.
+- 2026-04-09: Ran gates successfully with `make gate` and `make test`. `make gate` passed all framework/task ownership checks; `make test` passed `25` unit tests in `8.305s`.
+- 2026-04-09: This execution was run directly in the worktree rather than through the local swarm runtime, so no new durable run manifest was recorded under `reports/status/swarm_runs/`. Operator should capture a runtime-owned manifest before moving this task to `ready_for_review`.
+- 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T030_20260409T193758Z.json
