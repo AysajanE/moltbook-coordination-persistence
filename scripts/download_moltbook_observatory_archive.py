@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,18 +25,15 @@ DEFAULT_LICENSE_HINTS = {
     "simulamet": "MIT",
     "moltnet": "CC-BY-4.0",
 }
-REPO_ROOT_GROUP = "repo_root"
 RAW_HASH_SCHEMA = pa.schema(
     [
         ("archive_name", pa.string()),
         ("snapshot_id", pa.string()),
         ("subset", pa.string()),
         ("split", pa.string()),
-        ("repo_path", pa.string()),
         ("raw_path", pa.string()),
         ("sha256", pa.string()),
         ("size_bytes", pa.int64()),
-        ("upstream_blob_id", pa.string()),
     ]
 )
 
@@ -70,9 +66,9 @@ def _default_hash_path(archive_name: str) -> Path:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Download a public Hugging Face dataset repo snapshot into the repo's "
-            "canonical raw zone, capture immutable provenance, and emit a tracked "
-            "archive manifest plus a restricted raw-to-hash mapping."
+            "Download a public Hugging Face archive into the repo's canonical raw zone, "
+            "capture immutable provenance, and emit a tracked archive manifest plus a "
+            "restricted raw-to-hash mapping."
         )
     )
     parser.add_argument(
@@ -122,30 +118,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--subset",
         action="append",
-        help=(
-            "Repo data subset to acquire (repeatable). When omitted, the full dataset "
-            "repo snapshot is acquired, including root metadata files."
-        ),
+        help="Dataset config/subset to export (repeatable). Defaults to all discovered configs.",
     )
     parser.add_argument(
         "--format",
         choices=["parquet", "csv"],
         default="parquet",
-        help=(
-            "Deprecated export format flag. Canonical acquisition now preserves the "
-            "upstream repo snapshot as-is; only the default parquet mode is supported."
-        ),
+        help="Export format for raw files (default: parquet).",
     )
     parser.add_argument(
         "--max-rows",
         type=int,
         default=None,
-        help="Unsupported for snapshot acquisition. Reserved for non-canonical smoke exports.",
+        help="Optional sample cap per split. Canonical acquisition rejects this unless explicitly allowlisted.",
     )
     parser.add_argument(
         "--allow-sampled-export",
         action="store_true",
-        help="Accepted for compatibility, but sampled snapshot acquisition is not supported.",
+        help="Allow --max-rows for smoke or sample exports. Never use for canonical acquisition.",
     )
     return parser.parse_args()
 
@@ -160,12 +150,29 @@ def _resolve_snapshot_dir(args: argparse.Namespace) -> Path:
     return args.out_root / str(args.snapshot_id)
 
 
+def _iter_dataset_splits(dataset_obj: object) -> list[tuple[str, object]]:
+    if hasattr(dataset_obj, "items"):
+        return [(str(name), split) for name, split in dataset_obj.items()]
+    return [("train", dataset_obj)]
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _write_export(split: object, out_path: Path, fmt: str) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "parquet":
+        split.to_parquet(str(out_path))
+        return
+    if fmt == "csv":
+        split.to_csv(str(out_path))
+        return
+    raise ValueError(f"Unsupported format: {fmt}")
 
 
 def _write_yaml_document(path: Path, payload: dict[str, Any]) -> None:
@@ -180,11 +187,9 @@ def _write_hash_mapping(path: Path, rows: list[dict[str, object]]) -> None:
         "snapshot_id": [str(row["snapshot_id"]) for row in rows],
         "subset": [str(row["subset"]) for row in rows],
         "split": [str(row["split"]) for row in rows],
-        "repo_path": [str(row["repo_path"]) for row in rows],
         "raw_path": [str(row["raw_path"]) for row in rows],
         "sha256": [str(row["sha256"]) for row in rows],
         "size_bytes": [int(row["size_bytes"]) for row in rows],
-        "upstream_blob_id": [str(row["upstream_blob_id"]) for row in rows],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     table = pa.table(arrays, schema=RAW_HASH_SCHEMA)
@@ -204,27 +209,14 @@ def _normalize_license(value: object, archive_name: str) -> str:
     raise SystemExit(f"Could not determine dataset license for archive={archive_name}.")
 
 
-def _repo_group(repo_path: str) -> str:
-    parts = Path(repo_path).parts
-    if len(parts) >= 3 and parts[0] == "data":
-        return parts[1]
-    return REPO_ROOT_GROUP
-
-
-def _resolve_dataset_metadata(
-    *,
-    dataset: str,
-    revision: str,
-    archive_name: str,
-) -> tuple[dict[str, str], list[dict[str, object]], str]:
+def _resolve_dataset_metadata(*, dataset: str, revision: str, archive_name: str) -> dict[str, str]:
     try:
         from huggingface_hub import HfApi
-        from huggingface_hub import __version__ as huggingface_hub_version
     except Exception as exc:  # noqa: BLE001
         raise SystemExit(f"Missing huggingface_hub dependency for provenance capture: {exc}") from exc
 
     api = HfApi()
-    info = api.dataset_info(dataset, revision=revision, files_metadata=True)
+    info = api.dataset_info(dataset, revision=revision)
     card_data = getattr(info, "cardData", None)
     if not isinstance(card_data, dict):
         card_data = getattr(info, "card_data", None)
@@ -233,219 +225,130 @@ def _resolve_dataset_metadata(
 
     resolved_revision = getattr(info, "sha", None) or revision
     license_value = card_data.get("license")
-    repo_entries: list[dict[str, object]] = []
-    for sibling in getattr(info, "siblings", []) or []:
-        repo_path = getattr(sibling, "rfilename", None)
-        if not repo_path:
-            continue
-        repo_entries.append(
-            {
-                "repo_path": str(repo_path),
-                "size_bytes": int(getattr(sibling, "size", 0) or 0),
-                "upstream_blob_id": str(getattr(sibling, "blob_id", "") or ""),
-            }
-        )
-
-    if not repo_entries:
-        raise SystemExit(f"Could not enumerate repo files for dataset={dataset}@{resolved_revision}.")
-
-    return (
-        {
-            "requested_revision": revision,
-            "resolved_revision": str(resolved_revision),
-            "license": _normalize_license(license_value, archive_name),
-        },
-        repo_entries,
-        huggingface_hub_version,
-    )
+    return {
+        "requested_revision": revision,
+        "resolved_revision": str(resolved_revision),
+        "license": _normalize_license(license_value, archive_name),
+    }
 
 
-def _resolve_subsets(
-    *,
-    repo_entries: list[dict[str, object]],
-    requested: list[str] | None,
-    archive_name: str,
-) -> list[str]:
-    discovered = sorted(
-        {
-            _repo_group(str(entry["repo_path"]))
-            for entry in repo_entries
-            if _repo_group(str(entry["repo_path"])) != REPO_ROOT_GROUP
-        }
-    )
+def _resolve_subsets(*, dataset: str, revision: str, requested: list[str] | None, archive_name: str) -> list[str]:
     if requested:
-        cleaned = [item.strip() for item in requested if item and item.strip()]
-        missing = sorted(set(cleaned) - set(discovered))
-        if missing:
-            raise SystemExit(
-                "Requested subset(s) not present in repo snapshot: " + ", ".join(missing)
-            )
-        return cleaned
+        return [item for item in requested if item]
+
+    try:
+        from datasets import get_dataset_config_names
+    except Exception as exc:  # noqa: BLE001
+        raise SystemExit(f"Missing datasets dependency for config discovery: {exc}") from exc
+
+    try:
+        discovered = [name for name in get_dataset_config_names(dataset, revision=revision) if name]
+    except Exception:
+        discovered = []
+
     if discovered:
         return discovered
     if archive_name == "simulamet":
         return list(DEFAULT_SIMULAMET_SUBSETS)
-    return []
-
-
-def _select_repo_entries(
-    *,
-    repo_entries: list[dict[str, object]],
-    subsets: list[str],
-) -> list[dict[str, object]]:
-    selected: list[dict[str, object]] = []
-    allowed_subsets = set(subsets)
-    for entry in repo_entries:
-        repo_path = str(entry["repo_path"])
-        group = _repo_group(repo_path)
-        if group == REPO_ROOT_GROUP or group in allowed_subsets:
-            selected.append(entry)
-    if not selected:
-        raise SystemExit("No repo files matched the selected subset filter.")
-    return sorted(selected, key=lambda entry: str(entry["repo_path"]))
-
-
-def _require_empty_snapshot_dir(snapshot_dir: Path) -> None:
-    if snapshot_dir.exists() and any(snapshot_dir.iterdir()):
-        raise SystemExit(
-            f"Snapshot directory already exists and is non-empty: {snapshot_dir}. "
-            "Remove or rename it before rerunning canonical acquisition."
-        )
-
-
-def _download_repo_snapshot(
-    *,
-    dataset: str,
-    revision: str,
-    snapshot_dir: Path,
-    repo_entries: list[dict[str, object]],
-) -> None:
-    try:
-        from huggingface_hub import snapshot_download
-    except Exception as exc:  # noqa: BLE001
-        raise SystemExit(f"Missing huggingface_hub dependency for snapshot download: {exc}") from exc
-
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        repo_id=dataset,
-        repo_type="dataset",
-        revision=revision,
-        local_dir=snapshot_dir,
-        allow_patterns=[str(entry["repo_path"]) for entry in repo_entries],
-    )
-    local_cache_dir = snapshot_dir / ".cache"
-    if local_cache_dir.exists():
-        shutil.rmtree(local_cache_dir)
+    return [""]
 
 
 def main() -> None:
     args = parse_args()
-    if args.format != "parquet":
-        raise SystemExit(
-            "Canonical repo snapshot acquisition preserves upstream files as-is. "
-            "Only the default --format parquet mode is supported."
-        )
-    if args.max_rows is not None:
-        raise SystemExit("Snapshot acquisition does not support --max-rows or sampled exports.")
-    if args.allow_sampled_export:
-        raise SystemExit("Snapshot acquisition does not support sampled exports.")
+    if args.max_rows is not None and not args.allow_sampled_export:
+        raise SystemExit("Canonical acquisition forbids --max-rows unless --allow-sampled-export is set.")
 
     archive_name = (args.archive_name or _default_archive_name(args.dataset)).strip().lower()
     snapshot_dir = _resolve_snapshot_dir(args).resolve()
     manifest_out = (args.manifest_out or _default_manifest_path(archive_name)).resolve()
     restricted_hash_out = (args.restricted_hash_out or _default_hash_path(archive_name)).resolve()
 
-    dataset_meta, repo_entries, huggingface_hub_version = _resolve_dataset_metadata(
+    try:
+        from datasets import __version__ as datasets_version
+        from datasets import load_dataset
+    except Exception as exc:  # noqa: BLE001
+        raise SystemExit(f"Missing datasets dependency: {exc}") from exc
+
+    dataset_meta = _resolve_dataset_metadata(
         dataset=args.dataset,
         revision=str(args.revision),
         archive_name=archive_name,
     )
     subset_names = _resolve_subsets(
-        repo_entries=repo_entries,
+        dataset=args.dataset,
+        revision=dataset_meta["resolved_revision"],
         requested=args.subset,
         archive_name=archive_name,
     )
-    selected_entries = _select_repo_entries(repo_entries=repo_entries, subsets=subset_names)
-    _require_empty_snapshot_dir(snapshot_dir)
-    _download_repo_snapshot(
-        dataset=args.dataset,
-        revision=dataset_meta["resolved_revision"],
-        snapshot_dir=snapshot_dir,
-        repo_entries=selected_entries,
-    )
 
     export_manifest: dict[str, Any] = {
-        "schema_version": "hf_archive_export_manifest.v3",
+        "schema_version": "hf_archive_export_manifest.v2",
         "archive_name": archive_name,
         "dataset": args.dataset,
         "requested_revision": dataset_meta["requested_revision"],
         "resolved_revision": dataset_meta["resolved_revision"],
         "license": dataset_meta["license"],
         "exported_at_utc": _utc_now_iso(),
-        "format": "raw_snapshot",
-        "sampled_export": False,
-        "max_rows": None,
+        "format": args.format,
+        "sampled_export": args.max_rows is not None,
+        "max_rows": args.max_rows,
         "snapshot_id": snapshot_dir.name,
         "snapshot_dir": str(snapshot_dir),
-        "download_transport": "huggingface_hub.snapshot_download",
-        "huggingface_hub_version": huggingface_hub_version,
-        "repo_root_files": {},
+        "datasets_version": datasets_version,
         "subsets": {},
-        "source_file_count": len(selected_entries),
-        "source_bytes_total": 0,
     }
     hash_rows: list[dict[str, object]] = []
 
-    for entry in selected_entries:
-        repo_path = str(entry["repo_path"])
-        group = _repo_group(repo_path)
-        local_path = snapshot_dir / repo_path
-        sha256 = _sha256_file(local_path)
-        size_bytes = int(local_path.stat().st_size)
-        blob_id = str(entry["upstream_blob_id"])
-        details = {
-            "path": str(local_path),
-            "repo_path": repo_path,
-            "sha256": sha256,
-            "size_bytes": size_bytes,
-            "upstream_blob_id": blob_id,
+    for subset_name in subset_names:
+        config_name = subset_name or None
+        dataset_obj = load_dataset(args.dataset, config_name, revision=dataset_meta["resolved_revision"])
+        subset_key = subset_name or "default"
+        subset_payload: dict[str, Any] = {
+            "config_name": config_name,
+            "splits": {},
+            "rows_exported_total": 0,
         }
-        export_manifest["source_bytes_total"] += size_bytes
 
-        if group == REPO_ROOT_GROUP:
-            export_manifest["repo_root_files"][repo_path] = details
-        else:
-            subset_payload = export_manifest["subsets"].setdefault(
-                group,
-                {
-                    "file_count": 0,
-                    "total_bytes": 0,
-                    "files": {},
-                },
-            )
-            subset_payload["file_count"] += 1
-            subset_payload["total_bytes"] += size_bytes
-            subset_payload["files"][repo_path] = details
+        for split_name, split in _iter_dataset_splits(dataset_obj):
+            exported = split
+            exported_rows = int(split.num_rows)
+            if args.max_rows is not None:
+                exported_rows = min(int(args.max_rows), int(split.num_rows))
+                exported = split.select(range(exported_rows))
 
-        hash_rows.append(
-            {
-                "archive_name": archive_name,
-                "snapshot_id": snapshot_dir.name,
-                "subset": group,
-                "split": Path(repo_path).name,
-                "repo_path": repo_path,
-                "raw_path": str(local_path),
+            out_path = snapshot_dir / subset_key / f"{split_name}.{args.format}"
+            _write_export(exported, out_path, args.format)
+            sha256 = _sha256_file(out_path)
+            size_bytes = int(out_path.stat().st_size)
+
+            subset_payload["splits"][split_name] = {
+                "source_rows": int(split.num_rows),
+                "exported_rows": exported_rows,
+                "path": str(out_path),
                 "sha256": sha256,
                 "size_bytes": size_bytes,
-                "upstream_blob_id": blob_id,
             }
-        )
+            subset_payload["rows_exported_total"] += exported_rows
+            hash_rows.append(
+                {
+                    "archive_name": archive_name,
+                    "snapshot_id": snapshot_dir.name,
+                    "subset": subset_key,
+                    "split": split_name,
+                    "raw_path": str(out_path),
+                    "sha256": sha256,
+                    "size_bytes": size_bytes,
+                }
+            )
 
+        export_manifest["subsets"][subset_key] = subset_payload
+
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
     export_manifest_path = snapshot_dir / "EXPORT_MANIFEST.json"
     export_manifest_path.write_text(json.dumps(export_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     canonical_manifest = {
-        "schema_version": "hf_archive_manifest.v3",
+        "schema_version": "hf_archive_manifest.v2",
         "archive_name": archive_name,
         "dataset": args.dataset,
         "requested_revision": dataset_meta["requested_revision"],
@@ -454,17 +357,11 @@ def main() -> None:
         "snapshot_id": snapshot_dir.name,
         "snapshot_dir": str(snapshot_dir),
         "exported_at_utc": export_manifest["exported_at_utc"],
-        "format": export_manifest["format"],
-        "download_transport": export_manifest["download_transport"],
-        "huggingface_hub_version": huggingface_hub_version,
-        "sampled_export": False,
-        "max_rows": None,
-        "source_file_count": export_manifest["source_file_count"],
-        "source_bytes_total": export_manifest["source_bytes_total"],
-        "repo_root_files": export_manifest["repo_root_files"],
-        "subsets": export_manifest["subsets"],
+        "sampled_export": export_manifest["sampled_export"],
+        "max_rows": export_manifest["max_rows"],
         "export_manifest_path": str(export_manifest_path),
         "restricted_hash_mapping_path": str(restricted_hash_out),
+        "subsets": export_manifest["subsets"],
     }
 
     _write_yaml_document(manifest_out, canonical_manifest)
@@ -478,7 +375,6 @@ def main() -> None:
                 "manifest_out": str(manifest_out),
                 "restricted_hash_out": str(restricted_hash_out),
                 "subset_count": len(export_manifest["subsets"]),
-                "source_file_count": export_manifest["source_file_count"],
             },
             indent=2,
             sort_keys=True,

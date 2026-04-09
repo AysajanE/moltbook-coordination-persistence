@@ -92,10 +92,9 @@ Analysis does not begin until the canonical freeze has passed the hard QC gates 
 
 ## Status
 
-- State: blocked
-- Last updated: 2026-04-09
+- State: backlog
+- Last updated: 2026-04-08
 
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
-- 2026-04-09: Operator blocked this task on canonical `main` after the isolated worker branch `T035_archive_qc_packet_and_benchmarks` reproduced a task/benchmark contradiction. The task-specific validation command failed with `archive_qc_failed`, but the local swarm runtime still promoted the task to `ready_for_review` because it only enforced preflight, declared outputs, gates, manifests, and path ownership. Treat task-branch run manifest `reports/status/swarm_runs/T035_20260409T194610Z.json` as stale/incomplete for review. Planner must resolve the basis mismatch between the first-week freeze metrics and the locked Stage 3 benchmark anchors before rerun.
