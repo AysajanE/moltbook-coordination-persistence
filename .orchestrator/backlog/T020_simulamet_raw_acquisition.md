@@ -85,7 +85,7 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 - `make test`
 
 ## Status
-- State: ready_for_review
+- State: done
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
@@ -98,3 +98,4 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 - 2026-04-09: Declared gates passed with `env PYTHONPATH=/tmp/moltbook_pydeps make gate` and `env PYTHONPATH=/tmp/moltbook_pydeps make test`.
 - 2026-04-09: This run was executed outside the local swarm runtime, so no durable `reports/status/swarm_runs/` manifest was created here. Operator should record the run manifest from the exact commands above before advancing the task to `ready_for_review`.
 - 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T020_20260409T175446Z.json
+- 2026-04-09: Judge approved; review log: reports/status/reviews/T020_20260409T180658Z.json
