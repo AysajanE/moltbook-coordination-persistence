@@ -17,8 +17,8 @@ allowed_paths:
   - "analysis/"
   - "derived/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "raw/"
@@ -50,7 +50,7 @@ The flagship estimands are reported through the aggregated `control_panel_summar
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: `contracts/schemas/control_panel_summary_v1.yaml`
 - Upstream tasks or manifests: `T040`
 - External references or systems: none

@@ -1,8 +1,9 @@
 version: 1
 artifact: archive_metadata_audit
 authority:
-  - docs/stage3_theory_framework_packet.cleaned.md
-  - docs/data_acquisition_plan.md
+  - README.md
+  - contracts/project.yaml
+  - contracts/framework.json
 grain: "one row per archive release or revision"
 required_fields:
   - archive_name

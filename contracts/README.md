@@ -4,10 +4,9 @@ Machine-readable project, runtime, and artifact contracts for the Moltbook coord
 
 ## Authority boundary
 
-- `docs/stage3_theory_framework_packet.cleaned.md` is the top scientific authority.
-- `docs/data_acquisition_plan.md` is the operational contract derived from the Stage 3 packet.
-- Files in `contracts/` translate that authority into repo-runtime rules and artifact schemas.
-- No contract in this directory may contradict the Stage 3 packet or the acquisition plan.
+- Detailed internal theory and acquisition materials are maintained outside the public repository.
+- Files in `contracts/` define the public runtime rules, artifact schemas, and repo-facing project contract.
+- No contract in this directory may contradict the public repo materials or knowingly misstate unpublished internal research decisions.
 
 ## Change policy
 

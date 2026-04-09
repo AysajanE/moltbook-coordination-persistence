@@ -7,7 +7,7 @@ Use this runbook for normal flagship repo task delivery. The current deployment 
 - Work inside a sandboxed environment that contains only this repo.
 - Sync the base branch before starting.
 - Run `make gate` and `make test`.
-- Review `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`, `contracts/project.yaml`, and `contracts/framework.json`.
+- Review `README.md`, `contracts/project.yaml`, and `contracts/framework.json`.
 - Verify required tools:
   - always: `git`, `python`
   - when manuscript tasks are in scope: the local LaTeX toolchain used by the repo
@@ -15,7 +15,7 @@ Use this runbook for normal flagship repo task delivery. The current deployment 
 ## 1) Planner scopes the queue
 
 - Create or update task files using the templates under `.orchestrator/templates/`.
-- Keep `allowed_paths` narrow and keep dependencies aligned with the Stage 3 artifact DAG.
+- Keep `allowed_paths` narrow and keep dependencies aligned with the public artifact DAG.
 - Use `integration_ready` only for W0 or W9 interface tasks that truly need early downstream consumption.
 
 ## 2) Operator prepares execution
@@ -35,13 +35,13 @@ Suggested worktree pattern:
 - Run from the task worktree.
 - Edit only allowed repo paths plus task `## Status` and `## Notes / Decisions`.
 - Record reproduction commands, assumptions, and blockers.
-- Stop instead of improvising on Stage 3 or contract ambiguity.
+- Stop instead of improvising on authority or contract ambiguity.
 - Write a handoff note when downstream tasks need durable guidance.
 
 ## 4) Judge reviews
 
 - Rerun the declared gates.
-- Verify outputs, required manifests, and the task success criteria against the Stage 3 packet and acquisition plan.
+- Verify outputs, required manifests, and the task success criteria against the public contracts and runbooks.
 - Confirm the review bundle:
   - task markdown
   - run manifest under `reports/status/swarm_runs/`

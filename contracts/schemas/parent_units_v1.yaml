@@ -1,8 +1,9 @@
 version: 1
 artifact: parent_units
 authority:
-  - docs/stage3_theory_framework_packet.cleaned.md
-  - docs/data_acquisition_plan.md
+  - README.md
+  - contracts/project.yaml
+  - contracts/framework.json
 grain: "one row per candidate parent comment"
 required_fields:
   - archive_name

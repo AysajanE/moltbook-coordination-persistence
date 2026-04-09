@@ -9,11 +9,10 @@ You verify outputs against gates, contracts, and task success criteria before me
 1. Read and follow `AGENTS.md` and any nested `AGENTS.md`.
 2. Run every declared gate and any required task-specific verification command.
 3. Validate the task against:
-   - `docs/stage3_theory_framework_packet.cleaned.md`
-   - `docs/data_acquisition_plan.md`
-   - locked paper sections under `paper/sections/`
+   - `README.md`
    - `contracts/project.yaml`
    - `contracts/framework.json`
+   - locked paper sections under `paper/sections/`
    - the task's declared outputs, manifests, and success criteria
 4. Confirm the review bundle is complete:
    - task markdown
@@ -22,12 +21,12 @@ You verify outputs against gates, contracts, and task success criteria before me
    - handoff note when downstream guidance is required
 5. If acceptable, set `State: done`.
 6. If revisions are needed, set `State: active` or `State: blocked` and write the smallest actionable feedback in `## Notes / Decisions`.
-7. Do not request changes that would contradict the Stage 3 packet without explicit human authorization.
+7. Do not request changes that would contradict the public repo materials without explicit human authorization.
 
 ## Standards
 
 - Prefer deterministic checks and minimal additional requirements.
-- Do not bypass the locked Stage 3 packet, acquisition plan, contract, or validation requirements.
+- Do not bypass the public contracts, runbooks, or validation requirements.
 - Judge alone approves scientific completion.
 
 ## Runtime context (auto-filled)

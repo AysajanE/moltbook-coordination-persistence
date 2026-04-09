@@ -18,8 +18,8 @@ allowed_paths:
   - "analysis/flagship_control_panel_margins.py"
   - "analysis/incidence_horizon_standardization.py"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
 outputs:
@@ -50,7 +50,7 @@ The carried-over estimand scripts are legacy helpers. They must be rewritten aga
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: `parent_units` and `control_panel_summary` schema contracts
 - Upstream tasks or manifests: `T045`, `T050`
 - External references or systems: none

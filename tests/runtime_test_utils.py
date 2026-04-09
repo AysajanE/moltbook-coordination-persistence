@@ -85,8 +85,12 @@ def write_project_yaml(root: Path) -> Path:
                 "  type: latex",
                 "",
                 "scientific_contract:",
-                "  top_authority: \"docs/stage3_theory_framework_packet.cleaned.md\"",
-                "  operational_plan: \"docs/data_acquisition_plan.md\"",
+                "  top_authority: \"private research packet (not published in this repository)\"",
+                "  operational_plan: \"private acquisition plan (not published in this repository)\"",
+                "  public_authority_surfaces:",
+                "    - \"README.md\"",
+                "    - \"contracts/project.yaml\"",
+                "    - \"contracts/framework.json\"",
                 "",
             ]
         ),
@@ -160,8 +164,6 @@ def write_framework_json(root: Path) -> Path:
                 "reports/status/",
             ],
             "empirical": [
-                "docs/stage3_theory_framework_packet.cleaned.md",
-                "docs/data_acquisition_plan.md",
                 "analysis/",
                 "paper/main.tex",
                 "manifests/",
@@ -186,8 +188,8 @@ def scaffold_runtime_repo(root: Path) -> None:
             [
                 "# AGENTS.md",
                 "",
-                "Use docs/stage3_theory_framework_packet.cleaned.md first.",
-                "Use docs/data_acquisition_plan.md second.",
+                "Use README.md first.",
+                "Use contracts/project.yaml and contracts/framework.json second.",
                 "analysis/flagship_control_panel_margins.py is provisional.",
                 "",
             ]
@@ -244,7 +246,6 @@ def scaffold_runtime_repo(root: Path) -> None:
         "contracts/schemas/thread_geometry_v1.yaml",
         "contracts/schemas/periodicity_input_v1.yaml",
         "contracts/schemas/archive_metadata_audit_v1.yaml",
-        "docs/decisions.md",
         "docs/swarm_deployment_plan.md",
         "docs/prompts/planner.md",
         "docs/prompts/worker.md",
@@ -271,9 +272,7 @@ def scaffold_runtime_repo(root: Path) -> None:
     ):
         write_text(root, rel, "# placeholder\n")
 
-    write_text(root, "docs/stage3_theory_framework_packet.cleaned.md", "# Stage 3\n")
-    write_text(root, "docs/data_acquisition_plan.md", "# Acquisition plan\n")
-    write_text(root, "analysis/AGENTS.md", "The authority docs outrank every script in this directory.\n")
+    write_text(root, "analysis/AGENTS.md", "README.md and contracts/ outrank every script in this directory.\n")
     write_text(
         root,
         ".orchestrator/workstreams.md",

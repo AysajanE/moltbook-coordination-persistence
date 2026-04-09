@@ -21,8 +21,8 @@ allowed_paths:
   - "reports/status/"
   - "contracts/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "paper/sections/model.tex"
   - "paper/sections/methods.tex"
   - "paper/sections/supplementary_material.tex"
@@ -53,7 +53,7 @@ Release assembly is explicitly deferred until the scientific path is stable. Whe
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: project and framework contracts
 - Upstream tasks or manifests: `T075`
 - External references or systems: none

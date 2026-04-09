@@ -20,8 +20,8 @@ CURATE_SCRIPT = Path("analysis/moltbook_api_curate.py")
 VALIDATE_SCRIPT = Path("analysis/moltbook_api_validate.py")
 
 CAMPAIGN_RELATIVE = Path("moltbook_live_campaign")
-COLLECTION_PLAN_FILE = "docs/data_acquisition_plan.md"
-COLLECTION_PLAN_SECTION = "Fresh data acquisition workflow"
+COLLECTION_PLAN_FILE = "README.md"
+COLLECTION_PLAN_SECTION = "Evidence Strategy"
 DEFAULT_CHRONOLOGY_SKEW_SECONDS = 300
 
 

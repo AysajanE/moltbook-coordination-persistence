@@ -20,8 +20,8 @@ allowed_paths:
   - "qc/"
   - "manifests/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
 outputs:
@@ -54,7 +54,7 @@ Replication requires aligned MoltNet freeze construction and QC before any MoltN
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: acquisition-plan QC requirements and runtime contracts
 - Upstream tasks or manifests: `T065`, `T050`
 - External references or systems: none

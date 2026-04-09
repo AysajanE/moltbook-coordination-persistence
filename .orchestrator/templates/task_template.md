@@ -15,8 +15,8 @@ requires_env: []
 allowed_paths:
   - "<path/to/file_or_small_prefix>"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "paper/sections/model.tex"
   - "paper/sections/methods.tex"
   - "paper/sections/supplementary_material.tex"
@@ -52,7 +52,7 @@ Describe why this task exists and which Stage 3 artifact or execution surface it
 
 ## Inputs
 
-- Authority docs:
+- Authority surfaces:
 - Contracts:
 - Upstream tasks or manifests:
 - External references or systems:

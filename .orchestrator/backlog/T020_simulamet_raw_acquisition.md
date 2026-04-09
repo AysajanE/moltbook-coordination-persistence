@@ -18,8 +18,8 @@ allowed_paths:
   - "manifests/"
   - "restricted/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "qc/"
@@ -54,7 +54,7 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: `contracts/project.yaml`, `contracts/framework.json`
 - Upstream tasks or manifests: none
 - External references or systems: canonical SimulaMet archive source
