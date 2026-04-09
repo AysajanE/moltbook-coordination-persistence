@@ -85,10 +85,9 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 - `make test`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-04-08
-
+- State: active
+- Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
+- 2026-04-09: Claimed by local swarm runtime on branch T020_simulamet_raw_acquisition.
