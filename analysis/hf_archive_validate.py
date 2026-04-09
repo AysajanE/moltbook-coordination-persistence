@@ -12,23 +12,7 @@ import pandas as pd
 
 GAP_LOG_HOURS = 6.0
 SEVERE_GAP_HOURS = 24.0
-SIMULAMET_BENCHMARKS = {
-    "comments_rows": 226_173,
-    "unique_comment_ids": 223_317,
-    "candidate_parent_units": 223_316,
-    "missing_author_ids": 906,
-    "gap_start": "2026-01-31T10:37:53+00:00",
-    "gap_end": "2026-02-02T04:20:50+00:00",
-    "gap_hours": 41.7,
-    "gap_posts": 38_166,
-    "gap_snapshots": 39,
-    "gap_word_frequency": 5_039,
-    "q_5m": 0.0942,
-    "q_1h": 0.0982,
-    "p_obs": 0.0960,
-    "t50_seconds": 4.55,
-    "t90_seconds": 50.05,
-}
+DEFAULT_BENCHMARK_DIR = Path(__file__).resolve().parents[1] / "manifests"
 EMPTY_EXCLUSION_COLUMNS = [
     "archive_name",
     "subset",
@@ -51,6 +35,28 @@ EMPTY_OVERRIDE_COLUMNS = [
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _load_json_document(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise SystemExit(f"expected_json_object:{path}")
+    return payload
+
+
+def _load_benchmark_expectations(archive_name: str, benchmark_config_path: Path | None = None) -> tuple[dict[str, Any], Path | None]:
+    resolved_path = benchmark_config_path
+    if resolved_path is None:
+        candidate = DEFAULT_BENCHMARK_DIR / f"{archive_name}_qc_benchmarks.json"
+        resolved_path = candidate if candidate.exists() else None
+    if resolved_path is None:
+        return {}, None
+
+    payload = _load_json_document(resolved_path)
+    metrics = payload.get("metrics", payload)
+    if not isinstance(metrics, dict):
+        raise SystemExit(f"benchmark_config_missing_metrics:{resolved_path}")
+    return {str(key): value for key, value in metrics.items()}, resolved_path
 
 
 def _load_frame(root: Path, subset: str) -> pd.DataFrame:
@@ -439,7 +445,6 @@ def _earliest_reply_metrics(comments: pd.DataFrame) -> dict[str, Any]:
 
 def _benchmark_rows(
     *,
-    archive_name: str,
     comments: pd.DataFrame,
     agents: pd.DataFrame,
     posts: pd.DataFrame,
@@ -448,6 +453,7 @@ def _benchmark_rows(
     word_frequency: pd.DataFrame,
     severe_gaps: list[dict[str, Any]],
     gap_disambiguation: list[dict[str, Any]],
+    benchmarks: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], str]:
     metrics = _earliest_reply_metrics(comments)
     rows: list[dict[str, Any]] = []
@@ -485,7 +491,6 @@ def _benchmark_rows(
         actuals["gap_snapshots"] = largest_gap_disambiguation["snapshots_in_gap"]
         actuals["gap_word_frequency"] = largest_gap_disambiguation["word_frequency_records_in_gap"]
 
-    benchmarks = SIMULAMET_BENCHMARKS if archive_name == "simulamet" else {}
     for metric_name, actual in actuals.items():
         expected = benchmarks.get(metric_name)
         tolerance = 0.0
@@ -646,6 +651,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Output CSV path for manual overrides.",
     )
+    parser.add_argument(
+        "--benchmark-config",
+        type=Path,
+        default=None,
+        help="Optional benchmark expectation manifest. Defaults to manifests/<archive>_qc_benchmarks.json when present.",
+    )
     return parser.parse_args()
 
 
@@ -693,8 +704,8 @@ def main() -> None:
         snapshots=snapshots,
         word_frequency=word_frequency,
     )
+    benchmarks, benchmark_config_path = _load_benchmark_expectations(archive_name, args.benchmark_config)
     benchmark_rows, benchmark_status = _benchmark_rows(
-        archive_name=archive_name,
         comments=comments,
         agents=agents,
         posts=posts,
@@ -703,6 +714,7 @@ def main() -> None:
         word_frequency=word_frequency,
         severe_gaps=severe_gap_rows,
         gap_disambiguation=gap_disambiguation_rows,
+        benchmarks=benchmarks,
     )
     overall_status = _qc_summary_status(linkage_rows, benchmark_status)
 
@@ -768,6 +780,7 @@ def main() -> None:
         "overall_status": overall_status,
         "linkage_hard_fail": linkage_hard_fail,
         "benchmark_status": benchmark_status,
+        "benchmark_config": None if benchmark_config_path is None else str(benchmark_config_path),
         "gap_count": len(gap_rows),
         "severe_gap_count": len(severe_gap_rows),
         "outputs": {

@@ -2393,7 +2393,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_task.add_argument("--final-state", choices=["integration_ready", "ready_for_review"], default="ready_for_review")
     run_task.set_defaults(func=cmd_run_task)
 
-    judge_task = subparsers.add_parser("judge-task", help="Perform deterministic Judge review for one ready_for_review task")
+    judge_task = subparsers.add_parser(
+        "judge-task",
+        help="Perform deterministic Judge review for one ready_for_review task (gates and declared artifacts only)",
+    )
     judge_task.add_argument("--task-id", required=True)
     judge_task.add_argument("--remote", default="origin")
     judge_task.add_argument("--base-branch", default="main")

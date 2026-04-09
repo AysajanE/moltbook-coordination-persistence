@@ -41,6 +41,8 @@ Suggested worktree pattern:
 ## 4) Judge reviews
 
 - Rerun the declared gates.
+- If `python scripts/swarm.py judge-task` is used, treat it as a deterministic helper that reruns gates plus declared output/manifest/review-bundle checks only.
+- Run any task-specific verification commands from `## Validation / Commands` manually as part of the Judge/Operator review unless a later machine-readable contract explicitly captures them.
 - Verify outputs, required manifests, and the task success criteria against the public contracts and runbooks.
 - Confirm the review bundle:
   - task markdown

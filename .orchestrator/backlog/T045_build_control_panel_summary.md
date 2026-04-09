@@ -44,7 +44,7 @@ The flagship estimands are reported through the aggregated `control_panel_summar
 - Workstream: W3
 - Assigned role: Worker
 - Suggested branch or worktree name: `T045_control_panel_summary`
-- Allowed paths: `analysis/`, `derived/`
+- Allowed paths: `analysis/build_control_panel_summary.py`, `derived/control_panel_summary_simulamet.parquet`
 - Disallowed paths: authority docs, contracts, paper, raw, and restricted surfaces
 - Stop conditions: Stage 3 ambiguity or path-boundary breaches
 
@@ -57,9 +57,9 @@ The flagship estimands are reported through the aggregated `control_panel_summar
 
 ## Outputs
 
-- Code: summary builder or aggregator under `analysis/`
+- Code: `analysis/build_control_panel_summary.py`
 - Data or manifests: `derived/control_panel_summary_simulamet.parquet`
-- Reports or docs: notes on full-window and gap-variant summaries
+- Reports or docs: none beyond the declared output parquet
 
 ## Success Criteria
 

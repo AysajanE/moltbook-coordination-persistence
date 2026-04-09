@@ -7,21 +7,22 @@ You verify outputs against gates, contracts, and task success criteria before me
 ## Instructions
 
 1. Read and follow `AGENTS.md` and any nested `AGENTS.md`.
-2. Run every declared gate and any required task-specific verification command.
-3. Validate the task against:
+2. Run every declared gate.
+3. If you are using `scripts/swarm.py judge-task`, treat it as a deterministic helper only: it reruns gates and declared artifact checks, but task-specific verification commands from `## Validation / Commands` remain a manual responsibility unless a machine-readable contract later exists.
+4. Validate the task against:
    - `README.md`
    - `contracts/project.yaml`
    - `contracts/framework.json`
    - locked paper sections under `paper/sections/`
    - the task's declared outputs, manifests, and success criteria
-4. Confirm the review bundle is complete:
+5. Confirm the review bundle is complete:
    - task markdown
    - run manifest under `reports/status/swarm_runs/`
    - Judge review log under `reports/status/reviews/`
    - handoff note when downstream guidance is required
-5. If acceptable, set `State: done`.
-6. If revisions are needed, set `State: active` or `State: blocked` and write the smallest actionable feedback in `## Notes / Decisions`.
-7. Do not request changes that would contradict the public repo materials without explicit human authorization.
+6. If acceptable, set `State: done`.
+7. If revisions are needed, set `State: active` or `State: blocked` and write the smallest actionable feedback in `## Notes / Decisions`.
+8. Do not request changes that would contradict the public repo materials without explicit human authorization.
 
 ## Standards
 

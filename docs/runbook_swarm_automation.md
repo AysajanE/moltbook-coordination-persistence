@@ -23,6 +23,8 @@ This repo currently uses a manual Operator loop. The automation layer is intenti
 
 - Treat `python scripts/swarm.py plan` as the queue view.
 - Use `python scripts/swarm.py run-task` and `python scripts/swarm.py judge-task` for task-local execution and review when appropriate.
+- Treat `python scripts/swarm.py judge-task` as a deterministic helper only: it reruns declared gates plus output/manifest/review-bundle checks, but it does not execute free-form task-specific validation commands from `## Validation / Commands`.
+- Keep any task-specific verification commands in the manual Operator/Judge review loop unless the task contract later grows a machine-readable verification field.
 - Keep Operator review between task completion and merge.
 - Do not introduce pilot-repo release assumptions until a dedicated W9 task does so explicitly.
 

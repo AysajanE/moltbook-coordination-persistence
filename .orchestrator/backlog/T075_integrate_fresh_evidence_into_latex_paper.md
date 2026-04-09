@@ -13,6 +13,7 @@ integration_ready_dependencies: []
 requires_tools:
   - "python"
   - "git"
+  - "latexmk"
 requires_env: []
 allowed_paths:
   - "paper/main.tex"
