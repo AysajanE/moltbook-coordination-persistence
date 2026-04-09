@@ -85,9 +85,16 @@ The flagship pipeline begins with fresh archive acquisition inside this repo. Th
 - `make test`
 
 ## Status
-- State: active
+- State: ready_for_review
 - Last updated: 2026-04-09
 ## Notes / Decisions
 
 - 2026-04-08: Seeded from the flagship swarm deployment plan.
 - 2026-04-09: Claimed by local swarm runtime on branch T020_simulamet_raw_acquisition.
+- 2026-04-09: Initial canonical export via `datasets.load_dataset()` failed on `data/comments/2026-01-31.parquet` with `ArrowInvalid: Failed to parse string '2026-01-31T08:39:52.516762+00:00' as a scalar of type int64`. Updated `scripts/download_moltbook_observatory_archive.py` to acquire the immutable Hugging Face dataset repo snapshot directly with `huggingface_hub.snapshot_download`, hash the downloaded raw files, preserve repo-root metadata files, and remove the local `.cache/huggingface/` helper directory from `raw/`.
+- 2026-04-09: Reproduction environment for this run used `python -m pip install --target /tmp/moltbook_pydeps datasets numpy pandas huggingface_hub`, `PYTHONPATH=/tmp/moltbook_pydeps`, `HF_HOME=/tmp/huggingface`, and `HF_DATASETS_CACHE=/tmp/huggingface/datasets`. `python -m pip install -e .` failed outside this task's allowed edit surface with `Multiple top-level packages discovered in a flat-layout`, so dependency installation was redirected to `/tmp`.
+- 2026-04-09: Canonical acquisition completed successfully with `env PYTHONPATH=/tmp/moltbook_pydeps HF_HOME=/tmp/huggingface HF_DATASETS_CACHE=/tmp/huggingface/datasets python scripts/download_moltbook_observatory_archive.py --dataset SimulaMet/moltbook-observatory-archive --archive-name simulamet --revision main --out-root raw/simulamet --snapshot-id 2026-04-09 --manifest-out manifests/simulamet_manifest.yaml --restricted-hash-out restricted/raw_to_hash_mapping.parquet`. The script resolved `main` to `4ea70791acc3e17bbcbdb168110d71cc2839f85a`, recorded license `MIT`, wrote `raw/simulamet/2026-04-09/`, wrote `manifests/simulamet_manifest.yaml`, and wrote `restricted/raw_to_hash_mapping.parquet`.
+- 2026-04-09: Output summary from the successful run: `source_file_count=376`, `source_bytes_total=3494241805`, `subset_count=7`, and restricted hash rows `376`. The seventh subset is `lost_and_found`, which is present in the upstream repo snapshot in addition to `agents`, `comments`, `posts`, `snapshots`, `submolts`, and `word_frequency`. The local raw snapshot also includes `EXPORT_MANIFEST.json`, so `find raw/simulamet/2026-04-09 -maxdepth 3 -type f | wc -l` returns `377`.
+- 2026-04-09: Declared gates passed with `env PYTHONPATH=/tmp/moltbook_pydeps make gate` and `env PYTHONPATH=/tmp/moltbook_pydeps make test`.
+- 2026-04-09: This run was executed outside the local swarm runtime, so no durable `reports/status/swarm_runs/` manifest was created here. Operator should record the run manifest from the exact commands above before advancing the task to `ready_for_review`.
+- 2026-04-09: Runtime passed: preflight, fresh outputs, gates, manifests, and run manifest are present. Ready for Judge review. Run manifest: reports/status/swarm_runs/T020_20260409T175446Z.json
