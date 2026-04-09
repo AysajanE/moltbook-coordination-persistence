@@ -42,7 +42,7 @@ SimulaMet and MoltNet are kept distinct throughout this process. The replication
 
 ## Repository Structure
 
-- `docs/`: theory framework, acquisition plan, decision records, and runbooks
+- `docs/`: public runbooks, prompts, and redacted compatibility stubs for private authority documents
 - `scripts/`: archive acquisition entrypoints, quality gates, task sweeping, and swarm runtime helpers
 - `analysis/`: schema discovery, curation, validation, derived-table builders, and analysis scripts
 - `contracts/`: machine-readable project rules and artifact schemas
@@ -56,7 +56,7 @@ Raw, frozen, restricted, and other large runtime data surfaces are intentionally
 
 ## Reproducibility And Governance
 
-Scientific and operational decisions in this repo follow a fixed source order:
+The private research workspace for this project follows a fixed source order. In this public repo, the corresponding authority paths are retained as redacted stubs where needed for tooling compatibility:
 
 1. the theory framework packet in `docs/`
 2. the data acquisition plan in `docs/`

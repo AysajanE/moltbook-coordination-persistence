@@ -9,13 +9,12 @@ This repository is a public research workspace with strict reproducibility and p
 Read these sources in order before proposing substantive changes:
 
 1. [README.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/README.md)
-2. [docs/stage3_theory_framework_packet.cleaned.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/docs/stage3_theory_framework_packet.cleaned.md)
-3. [docs/data_acquisition_plan.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/docs/data_acquisition_plan.md)
-4. [contracts/project.yaml](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/project.yaml)
-5. [contracts/framework.json](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/framework.json)
-6. [AGENTS.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/AGENTS.md)
+2. [contracts/project.yaml](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/project.yaml)
+3. [contracts/framework.json](/Users/aeziz-local/Research/moltbook-coordination-persistence/contracts/framework.json)
+4. [docs/runbook_swarm.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/docs/runbook_swarm.md)
+5. [AGENTS.md](/Users/aeziz-local/Research/moltbook-coordination-persistence/AGENTS.md)
 
-If these surfaces appear to disagree, stop and open an issue or draft pull request rather than improvising a new project definition.
+Some authority-path documents are intentionally redacted in the public repo. If the available public surfaces appear to disagree, stop and open an issue or draft pull request rather than improvising a new project definition.
 
 ## Good Contribution Types
 
