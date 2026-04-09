@@ -42,7 +42,7 @@ SimulaMet and MoltNet are kept distinct throughout this process. The replication
 
 ## Repository Structure
 
-- `docs/`: public runbooks, prompts, and redacted compatibility stubs for private authority documents
+- `docs/`: public runbooks, prompts, and execution notes
 - `scripts/`: archive acquisition entrypoints, quality gates, task sweeping, and swarm runtime helpers
 - `analysis/`: schema discovery, curation, validation, derived-table builders, and analysis scripts
 - `contracts/`: machine-readable project rules and artifact schemas
@@ -56,13 +56,15 @@ Raw, frozen, restricted, and other large runtime data surfaces are intentionally
 
 ## Reproducibility And Governance
 
-The private research workspace for this project follows a fixed source order. In this public repo, the corresponding authority paths are retained as redacted stubs where needed for tooling compatibility:
+The public repo uses this source order for reproducibility and operational decisions:
 
-1. the theory framework packet in `docs/`
-2. the data acquisition plan in `docs/`
+1. `README.md`
+2. `contracts/project.yaml`, `contracts/framework.json`, and related files under `contracts/`
 3. locked manuscript sections under `paper/sections/`
-4. machine-readable contracts under `contracts/`
-5. task and orchestration metadata under `.orchestrator/`
+4. task and orchestration metadata under `.orchestrator/`
+5. public runbooks under `docs/`
+
+Detailed private research materials are intentionally not published in this repository.
 
 The repository also includes a lightweight local coordination layer under `.orchestrator/` for planning, execution, review, and status tracking. That control plane supports the work, but it is not the project description itself.
 
@@ -92,4 +94,4 @@ Public contributions should also follow [CONTRIBUTING.md](/Users/aeziz-local/Res
 
 ## Current Project State
 
-This repository already contains the scientific framework, acquisition plan, contracts, and reproducibility scaffolding needed to build the study from fresh archive evidence. The next substantive work in the environment is empirical: archive acquisition, canonical freeze construction, validation, derived-table building, analysis, and paper integration.
+This repository already contains the public contracts, runbooks, and reproducibility scaffolding needed to build the study from fresh archive evidence. The next substantive work in the environment is empirical: archive acquisition, canonical freeze construction, validation, derived-table building, analysis, and paper integration.

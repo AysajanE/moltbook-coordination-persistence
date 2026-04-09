@@ -34,8 +34,12 @@ paper_substrate:
   entrypoint: "paper/main.tex"
 
 scientific_contract:
-  top_authority: "docs/stage3_theory_framework_packet.cleaned.md"
-  operational_plan: "docs/data_acquisition_plan.md"
+  top_authority: "private research packet (not published in this repository)"
+  operational_plan: "private acquisition plan (not published in this repository)"
+  public_authority_surfaces:
+    - "README.md"
+    - "contracts/project.yaml"
+    - "contracts/framework.json"
   locked_sections:
     - "paper/sections/model.tex"
     - "paper/sections/methods.tex"

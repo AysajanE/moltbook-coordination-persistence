@@ -369,9 +369,6 @@ def gate_repo_structure() -> GateResult:
         "contracts/schemas/thread_geometry_v1.yaml",
         "contracts/schemas/periodicity_input_v1.yaml",
         "contracts/schemas/archive_metadata_audit_v1.yaml",
-        "docs/stage3_theory_framework_packet.cleaned.md",
-        "docs/data_acquisition_plan.md",
-        "docs/decisions.md",
         "docs/swarm_deployment_plan.md",
         "docs/prompts/planner.md",
         "docs/prompts/worker.md",
@@ -415,10 +412,14 @@ def gate_project_contract() -> GateResult:
     failures: list[str] = []
     if _parse_simple_yaml_scalar(text, "mode") != "empirical":
         failures.append("project_mode_must_be_empirical")
-    if "top_authority: \"docs/stage3_theory_framework_packet.cleaned.md\"" not in text:
+    top_authority = _parse_simple_yaml_scalar(text, "top_authority")
+    operational_plan = _parse_simple_yaml_scalar(text, "operational_plan")
+    if not top_authority:
         failures.append("missing_top_authority")
-    if "operational_plan: \"docs/data_acquisition_plan.md\"" not in text:
+    if not operational_plan:
         failures.append("missing_operational_plan")
+    if "public_authority_surfaces:" not in text:
+        failures.append("missing_public_authority_surfaces")
     if "type: latex" not in text:
         failures.append("paper_substrate_must_be_latex")
     return GateResult(ok=len(failures) == 0, details={"failures": failures})
@@ -428,21 +429,21 @@ def gate_authority_sources() -> GateResult:
     failures: list[str] = []
 
     agents_text = _read_text(_repo_root() / "AGENTS.md")
-    if "docs/stage3_theory_framework_packet.cleaned.md" not in agents_text:
-        failures.append("root_agents_missing_stage3_precedence")
-    if "docs/data_acquisition_plan.md" not in agents_text:
-        failures.append("root_agents_missing_acquisition_plan_precedence")
+    if "README.md" not in agents_text:
+        failures.append("root_agents_missing_readme_precedence")
+    if "contracts/project.yaml" not in agents_text or "contracts/framework.json" not in agents_text:
+        failures.append("root_agents_missing_contract_precedence")
     if "analysis/flagship_control_panel_margins.py" not in agents_text:
         failures.append("root_agents_missing_legacy_script_warning")
 
     analysis_agents = _read_text(_repo_root() / "analysis" / "AGENTS.md")
-    if "outrank every script" not in analysis_agents:
+    if "README.md" not in analysis_agents or "outrank every script" not in analysis_agents:
         failures.append("analysis_agents_missing_authority_boundary")
 
     task_template = _read_text(_repo_root() / ".orchestrator" / "templates" / "task_template.md")
     for path in (
-        "docs/stage3_theory_framework_packet.cleaned.md",
-        "docs/data_acquisition_plan.md",
+        "README.md",
+        "docs/swarm_deployment_plan.md",
         "paper/sections/model.tex",
         "paper/sections/methods.tex",
     ):
@@ -521,8 +522,8 @@ def gate_task_hygiene() -> GateResult:
         allowed_paths = swarm._coerce_str_list(frontmatter.get("allowed_paths"))
         if workstream != "W0":
             for protected in (
-                "docs/stage3_theory_framework_packet.cleaned.md",
-                "docs/data_acquisition_plan.md",
+                "README.md",
+                "docs/swarm_deployment_plan.md",
                 "paper/sections/model.tex",
                 "paper/sections/methods.tex",
                 "paper/sections/supplementary_material.tex",

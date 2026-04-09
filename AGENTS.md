@@ -4,13 +4,14 @@ This repo is the standalone Moltbook coordination persistence research environme
 
 ## Source precedence
 
-1. `docs/stage3_theory_framework_packet.cleaned.md`
-2. `docs/data_acquisition_plan.md`
+1. `README.md`
+2. `contracts/project.yaml`, `contracts/framework.json`, and applicable `contracts/*`
 3. locked paper sections under `paper/sections/`
-4. `contracts/project.yaml`, `contracts/framework.json`, and applicable `contracts/*`
-5. `.orchestrator/workstreams.md`
-6. the assigned task file
-7. `.orchestrator/handoff/` notes
+4. `.orchestrator/workstreams.md`
+5. the assigned task file
+6. `.orchestrator/handoff/` notes
+
+Detailed private theory and acquisition materials are intentionally not published in this repository.
 
 If guidance still conflicts after applying that order, stop, set `State: blocked`, and record the smallest `@human` question needed to unblock the task.
 
@@ -26,8 +27,8 @@ Default if unclear: `Worker`.
 ## Non-negotiable repo rules
 
 - Do not import old data, old result tables, old figures, old discussion text, or old conclusions from the parent repo.
-- Stage 3 theory and methods are locked; fresh empirical evidence must be generated in this repo.
-- `analysis/flagship_control_panel_margins.py` and `analysis/incidence_horizon_standardization.py` are provisional legacy carryovers. They do not override the Stage 3 packet or the acquisition plan.
+- Fresh empirical evidence must be generated in this repo.
+- `analysis/flagship_control_panel_margins.py` and `analysis/incidence_horizon_standardization.py` are provisional legacy carryovers. They do not override the public contracts or unpublished internal research materials.
 - Do not fabricate results, file contents, data provenance, or manuscript claims.
 - Keep edits narrow and additive. Prefer manifests, review logs, and decision entries over silent replacements.
 - Do not commit raw or restricted archive material. Keep `raw/`, `frozen/`, `restricted/`, `data_raw/`, `data_curated/`, `data_features/`, and `outputs/` out of git.
@@ -51,8 +52,9 @@ The current swarm deployment is intentionally semi-automated. Operator remains r
 
 Block immediately with `@human` if:
 
-- the Stage 3 packet and an implementation surface disagree
+- the public repo materials and an implementation surface disagree
 - a task would require edits outside `allowed_paths`
 - credentials, access, or missing tools are required
 - a new scientific assumption is needed but not yet recorded in `contracts/assumptions.md`
+- a task depends on unpublished internal materials that are not available in this repo
 - a proposed shortcut would bypass provenance, QC, or review discipline

@@ -18,8 +18,8 @@ allowed_paths:
   - "manifests/"
   - "qc/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "derived/"
@@ -52,7 +52,7 @@ The archive-first pipeline requires a harmonized schema contract before freeze c
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: derived-table and runtime contracts
 - Upstream tasks or manifests: `T020`, `manifests/simulamet_manifest.yaml`
 - External references or systems: none

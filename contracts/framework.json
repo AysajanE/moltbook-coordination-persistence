@@ -90,8 +90,6 @@
       "reports/status/"
     ],
     "empirical": [
-      "docs/stage3_theory_framework_packet.cleaned.md",
-      "docs/data_acquisition_plan.md",
       "analysis/",
       "paper/main.tex",
       "manifests/",

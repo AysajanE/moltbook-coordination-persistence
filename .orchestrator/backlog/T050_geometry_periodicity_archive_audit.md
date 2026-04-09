@@ -17,8 +17,8 @@ allowed_paths:
   - "analysis/"
   - "derived/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "raw/"
@@ -53,7 +53,7 @@ The flagship design requires thread geometry, periodicity inputs, archive metada
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: `contracts/schemas/thread_geometry_v1.yaml`, `contracts/schemas/periodicity_input_v1.yaml`, `contracts/schemas/archive_metadata_audit_v1.yaml`
 - Upstream tasks or manifests: `T035`
 - External references or systems: none

@@ -18,8 +18,8 @@ allowed_paths:
   - "analysis/"
   - "derived/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "raw/"
@@ -52,7 +52,7 @@ After the MoltNet freeze and QC packet are complete, the flagship repo can build
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: flagship derived-table schemas
 - Upstream tasks or manifests: `T070`, `T050`
 - External references or systems: none

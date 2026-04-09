@@ -6,15 +6,14 @@ Deploy the current research swarm framework into this repo as a flagship-specifi
 
 ## Authority lock
 
-1. `docs/stage3_theory_framework_packet.cleaned.md`
-2. `docs/data_acquisition_plan.md`
+1. `README.md`
+2. `contracts/project.yaml`, `contracts/framework.json`, and applicable `contracts/*`
 3. locked paper sections under `paper/sections/`
-4. `contracts/project.yaml`, `contracts/framework.json`, and applicable `contracts/*`
-5. `.orchestrator/workstreams.md`
-6. task files
-7. `.orchestrator/handoff/`
+4. `.orchestrator/workstreams.md`
+5. task files
+6. `.orchestrator/handoff/`
 
-If any carried-over implementation contradicts the Stage 3 packet, the packet wins.
+If any carried-over implementation contradicts the public repo materials, the public repo materials win.
 
 ## Deployment decision
 
@@ -115,6 +114,6 @@ It does not yet execute the scientific archive pipeline.
 
 - 2026-04-08: deployment plan saved locally in this repo
 - 2026-04-08: flagship-specific swarm control plane installed
-- 2026-04-08: contracts, prompts, runbooks, and runtime scripts rewritten for Stage 3 precedence
+- 2026-04-08: contracts, prompts, runbooks, and runtime scripts rewritten for flagship precedence
 - 2026-04-08: backlog seeded from `T020` through `T080`
 - 2026-04-08: verification completed with `make gate`, `make test`, and `python scripts/swarm.py plan`

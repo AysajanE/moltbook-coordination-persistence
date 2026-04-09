@@ -22,8 +22,8 @@ allowed_paths:
   - "manifests/"
   - "restricted/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "derived/"
@@ -56,7 +56,7 @@ The replication archive is acquired only after the SimulaMet core path is stable
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: `contracts/project.yaml`, `contracts/framework.json`
 - Upstream tasks or manifests: `T060`
 - External references or systems: MoltNet release surfaces or public API

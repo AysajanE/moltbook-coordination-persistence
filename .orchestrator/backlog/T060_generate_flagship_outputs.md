@@ -17,8 +17,8 @@ allowed_paths:
   - "analysis/"
   - "qc/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "raw/"
@@ -50,7 +50,7 @@ Once the canonical tables and rewritten scripts exist, the flagship repo can gen
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: derived-table and runtime contracts
 - Upstream tasks or manifests: `T055`
 - External references or systems: none

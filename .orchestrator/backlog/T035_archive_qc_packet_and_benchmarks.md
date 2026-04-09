@@ -17,8 +17,8 @@ allowed_paths:
   - "analysis/hf_archive_validate.py"
   - "qc/"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "contracts/"
   - "paper/"
   - "derived/"
@@ -55,7 +55,7 @@ Analysis does not begin until the canonical freeze has passed the hard QC gates 
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: schema contracts and runtime contracts
 - Upstream tasks or manifests: `T030`, fresh freeze outputs
 - External references or systems: none

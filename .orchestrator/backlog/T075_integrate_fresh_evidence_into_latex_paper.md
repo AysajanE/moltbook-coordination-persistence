@@ -18,8 +18,8 @@ allowed_paths:
   - "paper/main.tex"
   - "paper/references.bib"
 disallowed_paths:
-  - "docs/stage3_theory_framework_packet.cleaned.md"
-  - "docs/data_acquisition_plan.md"
+  - "README.md"
+  - "docs/swarm_deployment_plan.md"
   - "paper/sections/model.tex"
   - "paper/sections/methods.tex"
   - "paper/sections/supplementary_material.tex"
@@ -51,7 +51,7 @@ The manuscript wrapper stays in LaTeX. Fresh evidence should be integrated witho
 
 ## Inputs
 
-- Authority docs: `docs/stage3_theory_framework_packet.cleaned.md`, `docs/data_acquisition_plan.md`
+- Authority surfaces: `README.md`, `contracts/project.yaml`, `contracts/framework.json`
 - Contracts: project and runtime contracts
 - Upstream tasks or manifests: `T060`, `T070`
 - External references or systems: none
